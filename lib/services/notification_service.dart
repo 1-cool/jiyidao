@@ -57,7 +57,7 @@ class NotificationService {
           _channelId,
           _channelName,
           description: _channelDescription,
-          importance: Importance.high,
+          importance: Importance.max,
           showBadge: true,
         ),
       );
@@ -70,15 +70,15 @@ class NotificationService {
       _channelId,
       _channelName,
       channelDescription: _channelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       showWhen: true,
       ongoing: true, // 常驻通知
+      visibility: NotificationVisibility.public, // 锁屏可见
       styleInformation: BigTextStyleInformation(
         '取件码：${code.code}\n'
-        '来源：${code.source}\n'
-        '${code.location != null ? '地点：${code.location}\n' : ''}'
-        '${code.remainingTimeDesc}',
+        '来源：${code.source}'
+        '${code.location != null ? '\n地点：${code.location}' : ''}',
         contentTitle: '${code.type.emoji} ${code.source}',
         summaryText: '点击复制取件码',
       ),

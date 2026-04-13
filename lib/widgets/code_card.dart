@@ -101,24 +101,10 @@ class CodeCard extends StatelessWidget {
                       
                       const SizedBox(height: 4),
                       
-                      // 过期时间
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: isExpired ? Colors.red : Colors.grey[500],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            code.remainingTimeDesc,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isExpired ? Colors.red : Colors.grey[500],
-                            ),
-                          ),
-                          if (code.location != null) ...[
-                            const SizedBox(width: 12),
+                      // 地点信息
+                      if (code.location != null)
+                        Row(
+                          children: [
                             Icon(
                               Icons.location_on,
                               size: 14,
@@ -136,8 +122,7 @@ class CodeCard extends StatelessWidget {
                               ),
                             ),
                           ],
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                 ),
