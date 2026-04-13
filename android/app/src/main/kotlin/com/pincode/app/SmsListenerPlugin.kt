@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.provider.Telephony
 import android.telephony.SmsMessage
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 /**
