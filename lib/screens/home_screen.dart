@@ -1,13 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/code_item.dart';
 import '../services/code_manager.dart';
 import '../widgets/code_card.dart';
 import 'add_code_screen.dart';
+import 'settings_screen.dart';
 
 /// 主界面
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _hasCheckedPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotificationPermission();
+  }
+
+  /// 检查通知权限
+  Future<void> _checkNotificationPermission() async {
+    if (_hasCheckedPermission) return;
+    _hasCheckedPermission = true;
+
+    final status = await Permission.notification.status;
+    if (!status.isGranted && mounted) {
+      // 延迟显示，等页面加载完成
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _showPermissionDialog();
+        }
+      });
+    }
+  }
+
+  /// 显示权限请求对话框
+  Future<void> _showPermissionDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_active, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('开启通知权限'),
+          ],
+        ),
+        content: const Text('为了在收到取件短信时及时提醒您，需要开启通知权限。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('稍后再说'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await Permission.notification.request();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,12 +78,6 @@ class HomeScreen extends StatelessWidget {
         title: const Text('记忆岛'),
         centerTitle: true,
         actions: [
-          // 清理过期按钮
-          IconButton(
-            icon: const Icon(Icons.cleaning_services_outlined),
-            tooltip: '清理过期',
-            onPressed: () => _cleanExpired(context),
-          ),
           // 设置按钮
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -85,7 +141,7 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '收到取件短信后会自动识别',
+            '点击下方按钮添加，或复制短信后自动识别',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[400],
@@ -230,13 +286,7 @@ class HomeScreen extends StatelessWidget {
               
               const SizedBox(height: 24),
               
-              // 信息列表
-              _InfoRow(
-                icon: Icons.access_time_outlined,
-                label: '过期时间',
-                value: '${code.expireTime.month}/${code.expireTime.day} ${code.expireTime.hour}:${code.expireTime.minute.toString().padLeft(2, '0')}',
-              ),
-              
+              // 地点信息
               if (code.location != null)
                 _InfoRow(
                   icon: Icons.location_on_outlined,
@@ -244,11 +294,11 @@ class HomeScreen extends StatelessWidget {
                   value: code.location!,
                 ),
               
+              // 创建时间
               _InfoRow(
                 icon: Icons.schedule_outlined,
-                label: '剩余时间',
-                value: code.remainingTimeDesc,
-                valueColor: code.isExpired ? Colors.red : null,
+                label: '添加时间',
+                value: '${code.createTime.month}月${code.createTime.day}日 ${code.createTime.hour}:${code.createTime.minute.toString().padLeft(2, '0')}',
               ),
               
               if (code.rawMessage != null) ...[
@@ -307,21 +357,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  /// 清理过期
-  Future<void> _cleanExpired(BuildContext context) async {
-    final count = await context.read<CodeManager>().cleanExpiredCodes();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已清理 $count 条过期记录')),
-      );
-    }
-  }
-
   /// 打开设置
   void _openSettings(BuildContext context) {
-    // TODO: 实现设置页面
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('设置页面开发中...')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
     );
   }
 }

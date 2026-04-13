@@ -56,18 +56,20 @@ class CodeManager extends ChangeNotifier {
     await _notification.showCodeNotification(code);
   }
 
-  /// 手动添加取件码
+  /// 手动添加取件码（无过期时间）
   Future<CodeItem?> addManualCode({
     required String code,
     required CodeType type,
     required String source,
     String? location,
-    DateTime? expireTime,
   }) async {
     // 检查是否已存在
     if (await _database.codeExists(code)) {
       return null;
     }
+    
+    // 过期时间设为 100 年后（实际上永不过期）
+    final farFuture = DateTime.now().add(const Duration(days: 365 * 100));
     
     final codeItem = CodeItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -75,7 +77,7 @@ class CodeManager extends ChangeNotifier {
       type: type,
       source: source,
       location: location,
-      expireTime: expireTime ?? DateTime.now().add(const Duration(days: 3)),
+      expireTime: farFuture,
       createTime: DateTime.now(),
     );
     

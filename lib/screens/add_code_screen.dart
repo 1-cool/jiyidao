@@ -20,7 +20,6 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   final _locationController = TextEditingController();
   
   CodeType _selectedType = CodeType.express;
-  DateTime _expireDate = DateTime.now().add(const Duration(days: 3));
   
   bool _isProcessing = false;
 
@@ -55,9 +54,6 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
           if (result.location != null) {
             _locationController.text = result.location!;
           }
-          if (result.expireTime != null) {
-            _expireDate = result.expireTime!;
-          }
         });
         
         // 提示用户
@@ -91,7 +87,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
               controller: _codeController,
               decoration: const InputDecoration(
                 labelText: '取件码 *',
-                hintText: '如：12-3-4567',
+                hintText: '如：12-3-4567 或 0706-0331',
                 prefixIcon: Icon(Icons.qr_code),
               ),
               style: const TextStyle(
@@ -140,7 +136,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
               controller: _sourceController,
               decoration: const InputDecoration(
                 labelText: '来源 *',
-                hintText: '如：菜鸟驿站',
+                hintText: '如：菜鸟驿站、申通快递',
                 prefixIcon: Icon(Icons.store),
               ),
               validator: (value) {
@@ -158,22 +154,9 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
               controller: _locationController,
               decoration: const InputDecoration(
                 labelText: '地点（可选）',
-                hintText: '如：东门快递柜',
+                hintText: '如：东门快递柜、水岸明珠世纪华联',
                 prefixIcon: Icon(Icons.location_on),
               ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // 过期日期
-            ListTile(
-              leading: const Icon(Icons.event),
-              title: const Text('过期日期'),
-              subtitle: Text(
-                '${_expireDate.year}/${_expireDate.month}/${_expireDate.day}',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _selectDate,
             ),
             
             const Divider(height: 32),
@@ -224,20 +207,6 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
     );
   }
 
-  /// 选择日期
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _expireDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    
-    if (picked != null) {
-      setState(() => _expireDate = picked);
-    }
-  }
-
   /// 从剪贴板粘贴
   Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -261,9 +230,6 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
         _selectedType = result.type;
         if (result.location != null) {
           _locationController.text = result.location!;
-        }
-        if (result.expireTime != null) {
-          _expireDate = result.expireTime!;
         }
       });
       
@@ -300,7 +266,6 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
         location: _locationController.text.trim().isNotEmpty 
             ? _locationController.text.trim() 
             : null,
-        expireTime: _expireDate,
       );
       
       if (code != null && mounted) {

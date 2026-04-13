@@ -32,6 +32,12 @@ class PatternMatcher {
   static final List<PatternRule> _rules = [
     // ============ 快递类 ============
     
+    // 申通快递格式：请凭0706-0331到XX领取
+    PatternRule(
+      pattern: RegExp(r'请凭\s*(\d{4}-\d{4})\s*到'),
+      type: CodeType.express,
+    ),
+    
     // 菜鸟驿站格式：取件码：12-3-4567
     PatternRule(
       pattern: RegExp(r'取件码[：:]\s*(\d{1,2}-\d{1,2}-\d{3,4})'),
@@ -60,6 +66,18 @@ class PatternMatcher {
     // 驿站格式：请到XX驿站取件，码：12-3-4567
     PatternRule(
       pattern: RegExp(r'(?:驿站|快递点).*?(?:码|取件码)[：:]?\s*(\d{1,2}-\d{1,2}-\d{3,4})'),
+      type: CodeType.express,
+    ),
+    
+    // 凭码取件：凭码123456取件
+    PatternRule(
+      pattern: RegExp(r'凭[码号]\s*(\d{4,8})\s*(?:取件|领取)'),
+      type: CodeType.express,
+    ),
+    
+    // 取货码：取货码123456
+    PatternRule(
+      pattern: RegExp(r'取货码[：:]?\s*(\d{4,8})'),
       type: CodeType.express,
     ),
     

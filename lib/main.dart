@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
 import 'screens/home_screen.dart';
@@ -25,6 +26,17 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: '记忆岛',
         debugShowCheckedModeBanner: false,
+        // 中文本地化配置
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('zh', 'CN'), // 中文
+          Locale('en', 'US'), // 英文
+        ],
+        locale: const Locale('zh', 'CN'), // 默认中文
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.orange,
