@@ -13,7 +13,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('码钉'),
+        title: const Text('记忆岛'),
         centerTitle: true,
         actions: [
           // 清理过期按钮

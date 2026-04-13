@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../models/code_item.dart';
 import 'database_service.dart';
 import 'pattern_matcher.dart';
@@ -7,16 +7,12 @@ import 'notification_service.dart';
 /// 取件码管理器
 /// 
 /// 负责取件码的业务逻辑处理
-class CodeManager {
+class CodeManager extends ChangeNotifier {
   final DatabaseService _database = DatabaseService();
   final NotificationService _notification = NotificationService();
   
   /// 取件码列表（用于UI展示）
   List<CodeItem> _codes = [];
-  
-  /// 状态变化通知
-  final _codeListController = StreamController<List<CodeItem>>.broadcast();
-  Stream<List<CodeItem>> get codeListStream => _codeListController.stream;
   
   List<CodeItem> get codes => _codes;
 
@@ -30,7 +26,7 @@ class CodeManager {
   /// 加载取件码列表
   Future<void> _loadCodes() async {
     _codes = await _database.getActiveCodes();
-    _codeListController.add(_codes);
+    notifyListeners();
   }
 
   /// 处理短信内容
@@ -54,7 +50,7 @@ class CodeManager {
   Future<void> addCode(CodeItem code) async {
     await _database.insertCode(code);
     _codes.insert(0, code);
-    _codeListController.add(_codes);
+    notifyListeners();
     
     // 发送通知
     await _notification.showCodeNotification(code);
@@ -91,7 +87,7 @@ class CodeManager {
   Future<void> markAsUsed(String id) async {
     await _database.markAsUsed(id);
     _codes.removeWhere((code) => code.id == id);
-    _codeListController.add(_codes);
+    notifyListeners();
     
     // 取消通知
     await _notification.cancelNotification(id);
@@ -101,7 +97,7 @@ class CodeManager {
   Future<void> deleteCode(String id) async {
     await _database.deleteCode(id);
     _codes.removeWhere((code) => code.id == id);
-    _codeListController.add(_codes);
+    notifyListeners();
     
     // 取消通知
     await _notification.cancelNotification(id);
@@ -127,7 +123,8 @@ class CodeManager {
   }
 
   /// 释放资源
+  @override
   void dispose() {
-    _codeListController.close();
+    super.dispose();
   }
 }

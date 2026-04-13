@@ -20,10 +20,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<CodeManager>.value(
+    return ChangeNotifierProvider<CodeManager>.value(
       value: codeManager,
       child: MaterialApp(
-        title: '码钉',
+        title: '记忆岛',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
