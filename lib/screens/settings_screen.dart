@@ -249,7 +249,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _reminderTime,
-      locale: const Locale('zh', 'CN'),
       helpText: '选择提醒时间',
       confirmText: '确定',
       cancelText: '取消',
