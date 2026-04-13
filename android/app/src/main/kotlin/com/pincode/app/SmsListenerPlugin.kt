@@ -60,7 +60,7 @@ class SmsListenerPlugin : MethodChannel.MethodCallHandler {
         this.channel = channel
     }
     
-    override fun onMethodCall(call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "startListening" -> {
                 startSmsListener()
