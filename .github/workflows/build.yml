@@ -52,7 +52,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pincode-app-release
+          name: memory-island-release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
       

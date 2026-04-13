@@ -27,9 +27,6 @@ dependencies:
   # UI
   cupertino_icons: ^1.0.6
   flutter_slidable: ^3.0.1
-  
-  # 剪贴板监听
-  super_clipboard: ^0.8.4
 
 dev_dependencies:
   flutter_test:

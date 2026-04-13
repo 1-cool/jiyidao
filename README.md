@@ -1,16 +1,58 @@
-# pincode_app
+# 记忆岛
 
-A new Flutter project.
+把取件码、取餐码、登机口等临时信息"钉"在灵动岛/通知岛上，像记忆一样常驻。
 
-## Getting Started
+## 功能特性
 
-This project is a starting point for a Flutter application.
+- ✅ **短信自动识别** - 收到取件短信自动识别并添加
+- ✅ **通知栏常驻** - 取件码固定在通知栏，随时可见
+- ✅ **剪贴板识别** - 复制取件码自动识别
+- ✅ **手动添加** - 支持手动输入取件码
+- ✅ **过期自动清理** - 过期的取件码自动删除
+- ✅ **滑动操作** - 左滑标记已取/删除
 
-A few resources to get you started if this is your first Flutter project:
+## 支持的取件码格式
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 快递类
+- 菜鸟驿站：`取件码：12-3-4567`
+- 丰巢快递柜：`取件码 123456`
+- 通用格式：`取件码：123456`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 外卖类
+- 美团外卖：`取餐码：123`
+- 饿了么：`取餐码：456`
+
+### 出行类
+- 登机口：`登机口：A12`
+- 座位号：`座位：12A`
+
+## 权限说明
+
+| 权限 | 用途 |
+|-----|------|
+| RECEIVE_SMS | 接收短信广播，自动识别取件码 |
+| READ_SMS | 读取短信（可选，用于历史扫描） |
+| POST_NOTIFICATIONS | 显示通知（Android 13+） |
+| FOREGROUND_SERVICE | 后台保活服务 |
+| RECEIVE_BOOT_COMPLETED | 开机自启动 |
+| SYSTEM_ALERT_WINDOW | 悬浮窗显示（可选） |
+
+## 技术栈
+
+- **UI框架**: Flutter (Dart)
+- **状态管理**: Provider
+- **本地存储**: SQLite (sqflite)
+- **通知**: flutter_local_notifications
+- **原生插件**: Kotlin + MethodChannel
+
+## 开发计划
+
+- [ ] iOS 灵动岛支持
+- [ ] Android 悬浮窗
+- [ ] 鸿蒙服务卡片
+- [ ] 云端同步
+- [ ] 智能提醒（位置触发）
+
+## 许可证
+
+MIT License
