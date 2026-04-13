@@ -1,0 +1,133 @@
+import 'dart:async';
+import '../models/code_item.dart';
+import 'database_service.dart';
+import 'pattern_matcher.dart';
+import 'notification_service.dart';
+
+/// 取件码管理器
+/// 
+/// 负责取件码的业务逻辑处理
+class CodeManager {
+  final DatabaseService _database = DatabaseService();
+  final NotificationService _notification = NotificationService();
+  
+  /// 取件码列表（用于UI展示）
+  List<CodeItem> _codes = [];
+  
+  /// 状态变化通知
+  final _codeListController = StreamController<List<CodeItem>>.broadcast();
+  Stream<List<CodeItem>> get codeListStream => _codeListController.stream;
+  
+  List<CodeItem> get codes => _codes;
+
+  /// 初始化
+  Future<void> init() async {
+    await _database.cleanExpiredCodes();
+    await _loadCodes();
+    await _notification.init();
+  }
+
+  /// 加载取件码列表
+  Future<void> _loadCodes() async {
+    _codes = await _database.getActiveCodes();
+    _codeListController.add(_codes);
+  }
+
+  /// 处理短信内容
+  /// 
+  /// 自动识别短信中的取件码并保存
+  Future<CodeItem?> processSms(String smsContent) async {
+    final result = PatternMatcher.match(smsContent);
+    if (result == null) return null;
+    
+    // 检查是否已存在
+    if (await _database.codeExists(result.code)) {
+      return null; // 已存在，不重复添加
+    }
+    
+    final codeItem = result.toCodeItem();
+    await addCode(codeItem);
+    return codeItem;
+  }
+
+  /// 添加取件码
+  Future<void> addCode(CodeItem code) async {
+    await _database.insertCode(code);
+    _codes.insert(0, code);
+    _codeListController.add(_codes);
+    
+    // 发送通知
+    await _notification.showCodeNotification(code);
+  }
+
+  /// 手动添加取件码
+  Future<CodeItem?> addManualCode({
+    required String code,
+    required CodeType type,
+    required String source,
+    String? location,
+    DateTime? expireTime,
+  }) async {
+    // 检查是否已存在
+    if (await _database.codeExists(code)) {
+      return null;
+    }
+    
+    final codeItem = CodeItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      code: code,
+      type: type,
+      source: source,
+      location: location,
+      expireTime: expireTime ?? DateTime.now().add(const Duration(days: 3)),
+      createTime: DateTime.now(),
+    );
+    
+    await addCode(codeItem);
+    return codeItem;
+  }
+
+  /// 标记为已使用
+  Future<void> markAsUsed(String id) async {
+    await _database.markAsUsed(id);
+    _codes.removeWhere((code) => code.id == id);
+    _codeListController.add(_codes);
+    
+    // 取消通知
+    await _notification.cancelNotification(id);
+  }
+
+  /// 删除取件码
+  Future<void> deleteCode(String id) async {
+    await _database.deleteCode(id);
+    _codes.removeWhere((code) => code.id == id);
+    _codeListController.add(_codes);
+    
+    // 取消通知
+    await _notification.cancelNotification(id);
+  }
+
+  /// 清理所有已过期的取件码
+  Future<int> cleanExpiredCodes() async {
+    final count = await _database.cleanExpiredCodes();
+    await _loadCodes();
+    return count;
+  }
+
+  /// 清理所有已使用的取件码
+  Future<int> cleanUsedCodes() async {
+    final count = await _database.cleanUsedCodes();
+    await _loadCodes();
+    return count;
+  }
+
+  /// 刷新列表
+  Future<void> refresh() async {
+    await _loadCodes();
+  }
+
+  /// 释放资源
+  void dispose() {
+    _codeListController.close();
+  }
+}

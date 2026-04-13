@@ -1,0 +1,40 @@
+name: memory_island
+description: 记忆岛 - 把取件码钉在灵动岛上，像记忆一样常驻
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 状态管理
+  provider: ^6.1.1
+  
+  # 本地存储
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  shared_preferences: ^2.2.2
+  
+  # 通知
+  flutter_local_notifications: ^16.3.0
+  
+  # 权限
+  permission_handler: ^11.3.0
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  flutter_slidable: ^3.0.1
+  
+  # 剪贴板监听
+  super_clipboard: ^0.8.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
