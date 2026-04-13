@@ -1,5 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// 提醒模式
+enum ReminderMode {
+  everyday('每天', '每天提醒'),
+  workday('工作日', '周一至周五提醒'),
+  disabled('关闭', '不提醒');
+
+  final String label;
+  final String description;
+  const ReminderMode(this.label, this.description);
+}
 
 /// 设置页面
 class SettingsScreen extends StatefulWidget {
@@ -12,7 +24,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   // 下班提醒时间
   TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 30);
-  bool _reminderEnabled = true;
+  // 提醒模式
+  ReminderMode _reminderMode = ReminderMode.workday;
 
   @override
   void initState() {
@@ -22,13 +35,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// 加载设置
   Future<void> _loadSettings() async {
-    // TODO: 从 SharedPreferences 加载设置
-    // 这里暂时使用默认值
+    final prefs = await SharedPreferences.getInstance();
+    
+    final hour = prefs.getInt('reminder_hour') ?? 18;
+    final minute = prefs.getInt('reminder_minute') ?? 30;
+    final modeIndex = prefs.getInt('reminder_mode') ?? 1; // 默认工作日
+    
+    setState(() {
+      _reminderTime = TimeOfDay(hour: hour, minute: minute);
+      _reminderMode = ReminderMode.values[modeIndex];
+    });
   }
 
   /// 保存设置
   Future<void> _saveSettings() async {
-    // TODO: 保存到 SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    
+    await prefs.setInt('reminder_hour', _reminderTime.hour);
+    await prefs.setInt('reminder_minute', _reminderTime.minute);
+    await prefs.setInt('reminder_mode', _reminderMode.index);
+    
+    // TODO: 设置定时提醒
+    if (_reminderMode != ReminderMode.disabled) {
+      _scheduleReminder();
+    }
+  }
+
+  /// 设置定时提醒
+  void _scheduleReminder() {
+    // TODO: 使用 flutter_local_notifications 设置定时提醒
+    // 需要实现每日定时通知
   }
 
   @override
@@ -55,17 +91,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // 下班提醒
           _buildSectionHeader('下班提醒'),
           
-          SwitchListTile(
-            secondary: const Icon(Icons.alarm),
-            title: const Text('启用下班提醒'),
-            subtitle: const Text('每天下班时间提醒拿快递'),
-            value: _reminderEnabled,
-            onChanged: (value) {
-              setState(() => _reminderEnabled = value);
-              _saveSettings();
-            },
+          // 提醒模式选择
+          ListTile(
+            leading: const Icon(Icons.alarm),
+            title: const Text('提醒模式'),
+            subtitle: Text(_reminderMode.description),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _selectReminderMode,
           ),
           
+          // 提醒时间
           ListTile(
             leading: const Icon(Icons.access_time),
             title: const Text('提醒时间'),
@@ -73,10 +108,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
               '${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            enabled: _reminderEnabled,
+            enabled: _reminderMode != ReminderMode.disabled,
             trailing: const Icon(Icons.chevron_right),
             onTap: _selectReminderTime,
           ),
+          
+          // 提示信息
+          if (_reminderMode != ReminderMode.disabled)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _reminderMode == ReminderMode.workday
+                            ? '将在周一至周五的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你拿快递'
+                            : '将在每天的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你拿快递',
+                        style: TextStyle(color: Colors.blue[700], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           
           const Divider(),
           
@@ -153,6 +215,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// 选择提醒模式
+  Future<void> _selectReminderMode() async {
+    final result = await showDialog<ReminderMode>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('选择提醒模式'),
+        children: ReminderMode.values.map((mode) {
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, mode),
+            child: ListTile(
+              leading: Radio<ReminderMode>(
+                value: mode,
+                groupValue: _reminderMode,
+                onChanged: (_) {}, // 不需要处理，点击整行即可
+              ),
+              title: Text(mode.label),
+              subtitle: Text(mode.description),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    
+    if (result != null && result != _reminderMode) {
+      setState(() => _reminderMode = result);
+      _saveSettings();
+    }
+  }
+
   /// 选择提醒时间
   Future<void> _selectReminderTime() async {
     final picked = await showTimePicker(
@@ -164,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       cancelText: '取消',
     );
     
-    if (picked != null) {
+    if (picked != null && picked != _reminderTime) {
       setState(() => _reminderTime = picked);
       _saveSettings();
     }
