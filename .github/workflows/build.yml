@@ -48,18 +48,39 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
       
-      # 7. 上传 APK 文件
-      - name: Upload APK
+      # 7. 获取版本号
+      - name: Get Version
+        id: version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
+          BUILD_NUMBER=$(grep 'version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+      
+      # 8. 上传 APK 文件（Artifacts，会打包成 zip）
+      - name: Upload APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: memory-island-release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
       
-      # 8. 创建 Release（仅在推送 tag 时）
+      # 9. 创建 Release（每次推送都创建，可直接下载 APK）
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.version.outputs.version }}-build${{ steps.version.outputs.build_number }}-${{ github.run_number }}
+          name: 记忆岛 v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
+          body: |
+            ## 更新内容
+            
+            详见 commit 记录。
+            
+            ## 下载
+            
+            点击下方 `app-release.apk` 直接下载安装。
           files: build/app/outputs/flutter-apk/app-release.apk
-          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

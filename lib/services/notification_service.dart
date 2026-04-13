@@ -12,30 +12,38 @@ class NotificationService {
   static const String _channelName = '取件码通知';
   static const String _channelDescription = '显示取件码、取餐码等信息';
 
-  /// 初始化通知服务
+  /// 初始化通知服务（非阻塞）
   Future<void> init() async {
-    // Android 初始化设置
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    // iOS 初始化设置
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: false,
-    );
-    
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-    
-    await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-    
-    // 创建通知渠道
-    await _createNotificationChannel();
+    // 使用 try-catch 防止初始化失败导致卡住
+    try {
+      // Android 初始化设置
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      // iOS 初始化设置
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false, // 不自动请求权限
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+      
+      await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+      
+      // 创建通知渠道（异步，不等待）
+      _createNotificationChannel().catchError((e) {
+        print('Failed to create notification channel: $e');
+      });
+    } catch (e) {
+      print('NotificationService init failed: $e');
+      // 不抛出异常，允许 App 继续运行
+    }
   }
 
   /// 创建通知渠道（Android 8.0+）
