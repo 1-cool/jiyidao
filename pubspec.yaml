@@ -22,7 +22,7 @@ dependencies:
   shared_preferences: ^2.2.2
   
   # 通知
-  flutter_local_notifications: ^21.0.0
+  flutter_local_notifications: ^17.2.1
   
   # 权限
   permission_handler: ^11.3.0
