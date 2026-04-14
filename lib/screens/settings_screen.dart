@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
+import '../theme/theme_manager.dart';
 
 /// 提醒模式
 enum ReminderMode {
@@ -115,6 +117,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
+          // 外观设置
+          _buildSectionHeader('外观'),
+          
+          // 主题模式
+          Consumer<ThemeManager>(
+            builder: (context, themeManager, child) {
+              return ListTile(
+                leading: Icon(themeManager.getThemeModeIcon()),
+                title: const Text('主题模式'),
+                subtitle: Text(themeManager.getThemeModeName()),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _selectThemeMode(context, themeManager),
+              );
+            },
+          ),
+          
+          const Divider(),
+          
           // 通知设置
           _buildSectionHeader('通知设置'),
           
@@ -289,6 +309,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (picked != null && picked != _reminderTime) {
       setState(() => _reminderTime = picked);
       _saveSettings();
+    }
+  }
+
+  /// 选择主题模式
+  Future<void> _selectThemeMode(BuildContext context, ThemeManager themeManager) async {
+    final result = await showDialog<ThemeMode>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('选择主题模式'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, ThemeMode.system),
+            child: ListTile(
+              leading: Radio<ThemeMode>(
+                value: ThemeMode.system,
+                groupValue: themeManager.themeMode,
+                onChanged: (_) {},
+              ),
+              leadingAndTrailingTextStyle: const TextStyle(fontSize: 20),
+              title: const Text('跟随系统'),
+              subtitle: const Text('自动跟随系统设置'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, ThemeMode.light),
+            child: ListTile(
+              leading: Radio<ThemeMode>(
+                value: ThemeMode.light,
+                groupValue: themeManager.themeMode,
+                onChanged: (_) {},
+              ),
+              title: const Text('亮色模式'),
+              subtitle: const Text('始终使用亮色主题'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, ThemeMode.dark),
+            child: ListTile(
+              leading: Radio<ThemeMode>(
+                value: ThemeMode.dark,
+                groupValue: themeManager.themeMode,
+                onChanged: (_) {},
+              ),
+              title: const Text('暗黑模式'),
+              subtitle: const Text('始终使用深蓝黑主题'),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (result != null) {
+      await themeManager.setThemeMode(result);
     }
   }
 }

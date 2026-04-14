@@ -3,9 +3,15 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
 import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化主题管理器
+  final themeManager = ThemeManager();
+  await themeManager.init();
   
   // 初始化取件码管理器（带超时保护，防止卡启动页）
   final codeManager = CodeManager();
@@ -22,71 +28,51 @@ void main() async {
     // 即使初始化失败，也继续运行 App
   }
   
-  runApp(MyApp(codeManager: codeManager));
+  runApp(MyApp(
+    codeManager: codeManager,
+    themeManager: themeManager,
+  ));
 }
 
 class MyApp extends StatelessWidget {
   final CodeManager codeManager;
+  final ThemeManager themeManager;
 
-  const MyApp({super.key, required this.codeManager});
+  const MyApp({
+    super.key,
+    required this.codeManager,
+    required this.themeManager,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<CodeManager>.value(
-      value: codeManager,
-      child: MaterialApp(
-        title: '记忆岛',
-        debugShowCheckedModeBanner: false,
-        // 中文本地化配置
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('zh', 'CN'), // 中文
-          Locale('en', 'US'), // 英文
-        ],
-        locale: const Locale('zh', 'CN'), // 默认中文
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            elevation: 0,
-          ),
-          cardTheme: CardTheme(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          floatingActionButtonTheme: const FloatingActionButtonThemeData(
-            elevation: 4,
-          ),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            elevation: 0,
-          ),
-          cardTheme: CardTheme(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        themeMode: ThemeMode.system,
-        home: const HomeScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<CodeManager>.value(value: codeManager),
+        ChangeNotifierProvider<ThemeManager>.value(value: themeManager),
+      ],
+      child: Consumer<ThemeManager>(
+        builder: (context, themeManager, child) {
+          return MaterialApp(
+            title: '记忆岛',
+            debugShowCheckedModeBanner: false,
+            // 中文本地化配置
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('zh', 'CN'), // 中文
+              Locale('en', 'US'), // 英文
+            ],
+            locale: const Locale('zh', 'CN'), // 默认中文
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeManager.themeMode,
+            home: const HomeScreen(),
+          );
+        },
       ),
     );
   }
