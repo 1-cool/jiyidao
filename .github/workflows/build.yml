@@ -36,19 +36,31 @@ jobs:
           channel: 'stable'
           cache: true
       
-      # 4. 获取依赖
+      # 4. 配置签名（从 GitHub Secrets 读取）
+      - name: Configure Signing
+        run: |
+          cd android/app
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
+          cat > ../key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=memory-island
+          storeFile=release-keystore.jks
+          EOF
+      
+      # 5. 获取依赖
       - name: Get Dependencies
         run: flutter pub get
       
-      # 5. 分析代码（可选，检查语法错误）
+      # 6. 分析代码（可选，检查语法错误）
       - name: Analyze Code
         run: flutter analyze || true
       
-      # 6. 构建 APK
+      # 7. 构建 APK
       - name: Build APK
         run: flutter build apk --release
       
-      # 7. 获取版本号
+      # 8. 获取版本号
       - name: Get Version
         id: version
         run: |
@@ -57,7 +69,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
       
-      # 8. 上传 APK 文件（Artifacts，会打包成 zip）
+      # 9. 上传 APK 文件（Artifacts，会打包成 zip）
       - name: Upload APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
