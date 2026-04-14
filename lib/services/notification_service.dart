@@ -8,7 +8,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications = 
       FlutterLocalNotificationsPlugin();
   
-  static const String _channelId = 'pincode_channel';
+  // 通知渠道 ID 带版本号，删除旧渠道后递增版本即可重建
+  static const String _channelId = 'pincode_channel_v2';
   static const String _channelName = '取件码通知';
   static const String _channelDescription = '显示取件码、取餐码等信息';
 
@@ -36,13 +37,27 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
       
-      // 创建通知渠道（异步，不等待）
-      _createNotificationChannel().catchError((e) {
-        print('Failed to create notification channel: $e');
-      });
+      // 先删除旧渠道（如果存在），再创建新渠道
+      // Android 通知渠道一旦创建，用户改设置后代码无法覆盖
+      // 删掉旧渠道再用新 ID 创建，才能重置渠道设置
+      await _deleteOldChannel();
+      
+      // 创建通知渠道
+      await _createNotificationChannel();
     } catch (e) {
       print('NotificationService init failed: $e');
       // 不抛出异常，允许 App 继续运行
+    }
+  }
+
+  /// 删除旧版本的通知渠道
+  Future<void> _deleteOldChannel() async {
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    
+    if (androidPlugin != null) {
+      // 删除旧版本的渠道 ID
+      await androidPlugin.deleteNotificationChannel('pincode_channel');
     }
   }
 
