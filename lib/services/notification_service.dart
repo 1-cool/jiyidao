@@ -1,4 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/code_item.dart';
 
 /// 通知服务
@@ -17,6 +19,10 @@ class NotificationService {
   Future<void> init() async {
     // 使用 try-catch 防止初始化失败导致卡住
     try {
+      // 初始化时区数据库
+      tz_data.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
+
       // Android 初始化设置
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -178,5 +184,112 @@ class NotificationService {
     }
     
     return true;
+  }
+
+  /// 设置每日定时提醒
+  /// 
+  /// [hour] 小时 (0-23)
+  /// [minute] 分钟 (0-59)
+  /// [workdayOnly] 是否仅工作日提醒
+  Future<bool> scheduleDailyReminder({
+    required int hour,
+    required int minute,
+    bool workdayOnly = true,
+  }) async {
+    try {
+      // 先取消已有的定时提醒
+      await _notifications.cancel(0); // 使用固定 ID 0 作为提醒通知
+
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        visibility: NotificationVisibility.public,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      if (workdayOnly) {
+        // 工作日提醒：周一至周五
+        // 由于 flutter_local_notifications 不直接支持"工作日"，
+        // 我们需要为每一天分别设置
+        for (int day in [1, 2, 3, 4, 5]) {
+          // DateTime.monday = 1, ..., DateTime.friday = 5
+          await _notifications.zonedSchedule(
+            day, // 使用星期几作为 ID
+            '📦 下班提醒',
+            '别忘了拿快递哦！',
+            _nextInstanceOfWeekdayTime(day, hour, minute),
+            notificationDetails,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          );
+        }
+      } else {
+        // 每天提醒
+        await _notifications.zonedSchedule(
+          0,
+          '📦 下班提醒',
+          '别忘了拿快递哦！',
+          _nextInstanceOfTime(hour, minute),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      print('设置定时提醒失败: $e');
+      return false;
+    }
+  }
+
+  /// 取消定时提醒
+  Future<void> cancelDailyReminder({bool workdayOnly = true}) async {
+    if (workdayOnly) {
+      // 取消工作日提醒 (ID 1-5)
+      for (int day in [1, 2, 3, 4, 5]) {
+        await _notifications.cancel(day);
+      }
+    } else {
+      // 取消每天提醒 (ID 0)
+      await _notifications.cancel(0);
+    }
+  }
+
+  /// 获取下一个指定时间的 DateTime
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  /// 获取下一个指定星期几和时间的 DateTime
+  tz.TZDateTime _nextInstanceOfWeekdayTime(int day, int hour, int minute) {
+    var scheduledDate = _nextInstanceOfTime(hour, minute);
+    while (scheduledDate.weekday != day) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
   }
 }

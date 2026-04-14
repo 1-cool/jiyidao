@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 
 /// 提醒模式
 enum ReminderMode {
@@ -60,16 +61,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setInt('reminder_minute', _reminderTime.minute);
     await prefs.setInt('reminder_mode', _reminderMode.index);
     
-    // TODO: 设置定时提醒
     if (_reminderMode != ReminderMode.disabled) {
       _scheduleReminder();
+    } else {
+      // 关闭提醒时取消定时通知
+      _cancelReminder();
     }
   }
 
+  /// 取消定时提醒
+  Future<void> _cancelReminder() async {
+    final notificationService = NotificationService();
+    await notificationService.init();
+    await notificationService.cancelDailyReminder(workdayOnly: true);
+    await notificationService.cancelDailyReminder(workdayOnly: false);
+  }
+
   /// 设置定时提醒
-  void _scheduleReminder() {
-    // TODO: 使用 flutter_local_notifications 设置定时提醒
-    // 需要实现每日定时通知
+  Future<void> _scheduleReminder() async {
+    final notificationService = NotificationService();
+    await notificationService.init();
+    
+    final success = await notificationService.scheduleDailyReminder(
+      hour: _reminderTime.hour,
+      minute: _reminderTime.minute,
+      workdayOnly: _reminderMode == ReminderMode.workday,
+    );
+    
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _reminderMode == ReminderMode.workday
+                  ? '已设置工作日 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒'
+                  : '已设置每天 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('设置提醒失败，请检查通知权限')),
+        );
+      }
+    }
   }
 
   @override

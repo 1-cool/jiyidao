@@ -23,6 +23,7 @@ dependencies:
   
   # 通知
   flutter_local_notifications: ^16.3.0
+  timezone: ^0.9.4
   
   # 权限
   permission_handler: ^11.3.0
