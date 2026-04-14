@@ -50,7 +50,7 @@ class CodeItem {
       location: json['location'] as String?,
       createTime: DateTime.parse(json['createTime'] as String),
       rawMessage: json['rawMessage'] as String?,
-      isUsed: json['isUsed'] as bool? ?? false,
+      isUsed: (json['isUsed'] is int) ? (json['isUsed'] as int) == 1 : (json['isUsed'] as bool?) ?? false,
     );
   }
 
