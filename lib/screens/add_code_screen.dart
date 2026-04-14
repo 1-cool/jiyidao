@@ -18,6 +18,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   final _codeController = TextEditingController();
   final _sourceController = TextEditingController();
   final _locationController = TextEditingController();
+  final _recognizeController = TextEditingController(); // 识别输入框
   
   CodeType _selectedType = CodeType.express;
   
@@ -35,6 +36,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
     _codeController.dispose();
     _sourceController.dispose();
     _locationController.dispose();
+    _recognizeController.dispose();
     super.dispose();
   }
 
@@ -68,7 +70,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('添加取件码'),
+        title: const Text('添加'),
         actions: [
           TextButton.icon(
             onPressed: _isProcessing ? null : _save,
@@ -85,10 +87,10 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
             // 取件码输入
             TextFormField(
               controller: _codeController,
-              decoration: const InputDecoration(
-                labelText: '取件码 *',
+              decoration: InputDecoration(
+                labelText: _selectedType == CodeType.food ? '取餐码 *' : '取件码 *',
                 hintText: '如：12-3-4567 或 0706-0331',
-                prefixIcon: Icon(Icons.qr_code),
+                prefixIcon: const Icon(Icons.qr_code),
               ),
               style: const TextStyle(
                 fontSize: 24,
@@ -101,7 +103,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
               ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return '请输入取件码';
+                  return _selectedType == CodeType.food ? '请输入取餐码' : '请输入取件码';
                 }
                 return null;
               },
@@ -179,6 +181,25 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
               label: const Text('从剪贴板识别'),
             ),
             
+            const SizedBox(height: 12),
+            
+            // 手动输入识别
+            TextField(
+              controller: _recognizeController,
+              decoration: InputDecoration(
+                labelText: '粘贴内容识别',
+                hintText: '粘贴短信内容，自动识别取件码',
+                prefixIcon: const Icon(Icons.text_fields),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: '识别',
+                  onPressed: () => _recognizeText(_recognizeController.text),
+                ),
+              ),
+              maxLines: 3,
+              onSubmitted: _recognizeText,
+            ),
+            
             const SizedBox(height: 24),
             
             // 提示
@@ -221,6 +242,13 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
       return;
     }
     
+    _recognizeText(text);
+  }
+
+  /// 识别文本内容
+  void _recognizeText(String text) {
+    if (text.isEmpty) return;
+    
     final result = PatternMatcher.match(text);
     
     if (result != null) {
@@ -246,7 +274,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('未识别到取件码，已粘贴到取件码字段')),
+          const SnackBar(content: Text('未识别到取件码，已粘贴到码字段')),
         );
       }
     }
