@@ -19,30 +19,25 @@ class NotificationService {
     try {
       // Android 初始化设置
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      
+
       // iOS 初始化设置
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: false, // 不自动请求权限
         requestBadgePermission: false,
         requestSoundPermission: false,
       );
-      
+
       const initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       );
-      
+
       await _notifications.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
-      
-      // 先删除旧渠道（如果存在），再创建新渠道
-      // Android 通知渠道一旦创建，用户改设置后代码无法覆盖
-      // 删掉旧渠道再用新 ID 创建，才能重置渠道设置
-      await _deleteOldChannel();
-      
-      // 创建通知渠道
+
+      // 创建通知渠道（同步等待，确保渠道创建成功）
       await _createNotificationChannel();
     } catch (e) {
       print('NotificationService init failed: $e');
@@ -50,23 +45,20 @@ class NotificationService {
     }
   }
 
-  /// 删除旧版本的通知渠道
-  Future<void> _deleteOldChannel() async {
-    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    
-    if (androidPlugin != null) {
-      // 删除旧版本的渠道 ID
-      await androidPlugin.deleteNotificationChannel('pincode_channel');
-    }
-  }
-
   /// 创建通知渠道（Android 8.0+）
   Future<void> _createNotificationChannel() async {
     final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    
+
     if (androidPlugin != null) {
+      // 先尝试删除旧渠道（如果存在）
+      try {
+        await androidPlugin.deleteNotificationChannel('pincode_channel');
+      } catch (e) {
+        // 渠道不存在，忽略错误
+      }
+
+      // 创建新渠道
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
