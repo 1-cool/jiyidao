@@ -36,15 +36,31 @@ class AppTheme {
   );
 
   /// 暗黑主题 - 深蓝黑风格
-  /// 
-  /// 使用 ColorScheme.fromSeed 生成基础配色，确保兼容性
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryLight,
+    colorScheme: ColorScheme(
       brightness: Brightness.dark,
+      primary: primaryLight,
+      onPrimary: Colors.white,
+      primaryContainer: primaryDark,
+      onPrimaryContainer: Colors.white70,
+      secondary: const Color(0xFF4A90D9),
+      onSecondary: Colors.white,
+      secondaryContainer: const Color(0xFF1A3A5F),
+      onSecondaryContainer: Colors.white70,
+      tertiary: const Color(0xFF2E5A8F),
+      onTertiary: Colors.white,
+      error: const Color(0xFFCF6679),
+      onError: Colors.black,
+      errorContainer: const Color(0xFF1A1A2E),
+      onErrorContainer: const Color(0xFFCF6679),
       surface: darkSurface,
+      onSurface: Colors.white,
+      surfaceContainerHighest: darkCard,
+      onSurfaceVariant: Colors.white70,
+      outline: Colors.white30,
+      outlineVariant: Colors.white12,
     ),
     scaffoldBackgroundColor: darkBackground,
     appBarTheme: const AppBarTheme(
