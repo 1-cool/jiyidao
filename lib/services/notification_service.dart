@@ -105,13 +105,6 @@ class NotificationService {
       ongoing: true, // 常驻通知
       autoCancel: false, // 点击后不自动取消
       visibility: NotificationVisibility.public, // 锁屏可见
-      styleInformation: BigTextStyleInformation(
-        '取件码：${code.code}\n'
-        '来源：${code.source}'
-        '${code.location != null ? '\n地点：${code.location}' : ''}',
-        contentTitle: '${code.type.emoji} ${code.source}',
-        summaryText: '点击复制取件码',
-      ),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -130,8 +123,8 @@ class NotificationService {
 
     await _notifications.show(
       notificationId,
-      '${code.type.emoji} ${code.source}',
-      '取件码：${code.code}',
+      '${code.type.emoji} 取件码',
+      code.code,
       notificationDetails,
       payload: code.id,
     );
