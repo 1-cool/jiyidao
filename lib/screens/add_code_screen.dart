@@ -267,14 +267,12 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
         );
       }
     } else {
-      // 没识别到，直接粘贴到取件码字段
-      setState(() {
-        _codeController.text = text;
-      });
+      // 没识别到，清空识别框并提示用户手动输入
+      _recognizeController.clear();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('未识别到取件码，已粘贴到码字段')),
+          const SnackBar(content: Text('未能自动识别，请手动填写取件码')),
         );
       }
     }

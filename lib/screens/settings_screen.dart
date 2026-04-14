@@ -41,9 +41,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final minute = prefs.getInt('reminder_minute') ?? 30;
     final modeIndex = prefs.getInt('reminder_mode') ?? 1; // 默认工作日
     
+    // 边界检查，防止数组越界
+    final safeModeIndex = (modeIndex >= 0 && modeIndex < ReminderMode.values.length) 
+        ? modeIndex 
+        : 1;
+    
     setState(() {
       _reminderTime = TimeOfDay(hour: hour, minute: minute);
-      _reminderMode = ReminderMode.values[modeIndex];
+      _reminderMode = ReminderMode.values[safeModeIndex];
     });
   }
 

@@ -47,7 +47,7 @@ class CodeItem {
         orElse: () => CodeType.other,
       ),
       source: json['source'] as String,
-      location: json['location'] as String?,
+      location: (json['location'] as String?)?.isNotEmpty == true ? json['location'] as String : null,
       createTime: DateTime.parse(json['createTime'] as String),
       rawMessage: json['rawMessage'] as String?,
       isUsed: (json['isUsed'] is int) ? (json['isUsed'] as int) == 1 : (json['isUsed'] as bool?) ?? false,

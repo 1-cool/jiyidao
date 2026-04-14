@@ -7,13 +7,21 @@ import '../models/code_item.dart';
 /// 负责取件码数据的持久化存储
 class DatabaseService {
   static Database? _database;
+  static Future<Database>? _initFuture; // 防并发初始化
   static const String _tableName = 'codes';
 
-  /// 获取数据库实例
+  /// 获取数据库实例（防并发初始化）
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    // 如果已经在初始化中，等待完成
+    if (_initFuture != null) return _initFuture!;
+    _initFuture = _initDatabase();
+    try {
+      _database = await _initFuture!;
+      return _database!;
+    } finally {
+      _initFuture = null;
+    }
   }
 
   /// 初始化数据库
