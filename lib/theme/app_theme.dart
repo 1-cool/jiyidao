@@ -57,7 +57,6 @@ class AppTheme {
       onErrorContainer: const Color(0xFFCF6679),
       surface: darkSurface,
       onSurface: Colors.white,
-      surfaceContainerHighest: darkCard,
       onSurfaceVariant: Colors.white70,
       outline: Colors.white30,
       outlineVariant: Colors.white12,
