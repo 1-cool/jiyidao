@@ -78,9 +78,9 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin != null) {
-      final hasPermission = await androidPlugin
-          .requestNotificationsPermission() ??
-          await androidPlugin.areNotificationsEnabled();
+      final granted = await androidPlugin.requestNotificationsPermission();
+      final enabled = await androidPlugin.areNotificationsEnabled();
+      final hasPermission = granted ?? enabled ?? false;
 
       if (!hasPermission) {
         print('通知权限未授予，无法显示通知');
