@@ -231,10 +231,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 显示取件码详情
   void _showCodeDetail(BuildContext context, CodeItem code) {
+    // 保存外部 context 引用，避免 bottomSheet 内部 context 失效
+    final homeContext = context;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
+      builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.5,
         maxChildSize: 0.9,
         minChildSize: 0.3,
@@ -329,8 +332,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
-                        _markAsUsed(context, code);
+                        Navigator.pop(sheetContext);
+                        _markAsUsed(homeContext, code);
                       },
                       icon: const Icon(Icons.check),
                       label: const Text('已取件'),
@@ -340,8 +343,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
-                        _deleteCode(context, code);
+                        Navigator.pop(sheetContext);
+                        _deleteCode(homeContext, code);
                       },
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('删除'),
