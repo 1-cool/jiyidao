@@ -96,6 +96,7 @@ class NotificationService {
       priority: Priority.max,
       showWhen: true,
       ongoing: true, // 常驻通知
+      autoCancel: false, // 点击后不自动取消
       visibility: NotificationVisibility.public, // 锁屏可见
       styleInformation: BigTextStyleInformation(
         '取件码：${code.code}\n'
