@@ -81,6 +81,21 @@ class NotificationService {
 
   /// 显示取件码通知
   Future<void> showCodeNotification(CodeItem code) async {
+    // Android 13+ 检查通知权限
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin != null) {
+      final hasPermission = await androidPlugin
+          .requestNotificationsPermission() ??
+          await androidPlugin.areNotificationsEnabled();
+
+      if (!hasPermission) {
+        print('通知权限未授予，无法显示通知');
+        return;
+      }
+    }
+
     final androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
@@ -98,21 +113,21 @@ class NotificationService {
         summaryText: '点击复制取件码',
       ),
     );
-    
+
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: false,
     );
-    
+
     final notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
-    
+
     // 使用时间戳作为通知ID，确保每个码都有独立通知
     final notificationId = code.id.hashCode;
-    
+
     await _notifications.show(
       notificationId,
       '${code.type.emoji} ${code.source}',

@@ -60,9 +60,14 @@ class CodeManager extends ChangeNotifier {
     await _database.insertCode(code);
     _codes.insert(0, code);
     notifyListeners();
-    
+
     // 发送通知
-    await _notification.showCodeNotification(code);
+    try {
+      await _notification.showCodeNotification(code);
+    } catch (e) {
+      print('发送通知失败: $e');
+      // 通知失败不阻塞主流程，但可以提示用户
+    }
   }
 
   /// 手动添加取件码
@@ -76,7 +81,7 @@ class CodeManager extends ChangeNotifier {
     if (await _database.codeExists(code)) {
       return null;
     }
-    
+
     final codeItem = CodeItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       code: code,
@@ -85,7 +90,7 @@ class CodeManager extends ChangeNotifier {
       location: location,
       createTime: DateTime.now(),
     );
-    
+
     await addCode(codeItem);
     return codeItem;
   }
