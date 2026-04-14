@@ -17,9 +17,6 @@ class CodeItem {
   /// 地点，如 "东门快递柜"
   final String? location;
   
-  /// 过期时间
-  final DateTime expireTime;
-  
   /// 创建时间
   final DateTime createTime;
   
@@ -35,7 +32,6 @@ class CodeItem {
     required this.type,
     required this.source,
     this.location,
-    required this.expireTime,
     required this.createTime,
     this.rawMessage,
     this.isUsed = false,
@@ -52,7 +48,6 @@ class CodeItem {
       ),
       source: json['source'] as String,
       location: json['location'] as String?,
-      expireTime: DateTime.parse(json['expireTime'] as String),
       createTime: DateTime.parse(json['createTime'] as String),
       rawMessage: json['rawMessage'] as String?,
       isUsed: json['isUsed'] as bool? ?? false,
@@ -67,7 +62,6 @@ class CodeItem {
       'type': type.name,
       'source': source,
       'location': location,
-      'expireTime': expireTime.toIso8601String(),
       'createTime': createTime.toIso8601String(),
       'rawMessage': rawMessage,
       'isUsed': isUsed,
@@ -81,7 +75,6 @@ class CodeItem {
     CodeType? type,
     String? source,
     String? location,
-    DateTime? expireTime,
     DateTime? createTime,
     String? rawMessage,
     bool? isUsed,
@@ -92,31 +85,10 @@ class CodeItem {
       type: type ?? this.type,
       source: source ?? this.source,
       location: location ?? this.location,
-      expireTime: expireTime ?? this.expireTime,
       createTime: createTime ?? this.createTime,
       rawMessage: rawMessage ?? this.rawMessage,
       isUsed: isUsed ?? this.isUsed,
     );
-  }
-
-  /// 是否已过期
-  bool get isExpired => DateTime.now().isAfter(expireTime);
-
-  /// 剩余时间描述
-  String get remainingTimeDesc {
-    if (isExpired) return '已过期';
-    
-    final remaining = expireTime.difference(DateTime.now());
-    
-    if (remaining.inDays > 0) {
-      return '${remaining.inDays}天后过期';
-    } else if (remaining.inHours > 0) {
-      return '${remaining.inHours}小时后过期';
-    } else if (remaining.inMinutes > 0) {
-      return '${remaining.inMinutes}分钟后过期';
-    } else {
-      return '即将过期';
-    }
   }
 
   @override

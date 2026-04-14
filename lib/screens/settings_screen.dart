@@ -151,15 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('1.0.0'),
           ),
           
-          ListTile(
-            leading: const Icon(Icons.code),
-            title: const Text('开源地址'),
-            subtitle: const Text('github.com/1-cool/jiyidao'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () {
-              // TODO: 打开浏览器
-            },
-          ),
+
         ],
       ),
     );

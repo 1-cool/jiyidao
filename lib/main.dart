@@ -7,9 +7,20 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 初始化取件码管理器
+  // 初始化取件码管理器（带超时保护，防止卡启动页）
   final codeManager = CodeManager();
-  await codeManager.init();
+  try {
+    // 设置 5 秒超时，避免初始化卡住
+    await codeManager.init().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        print('CodeManager init timeout, continuing anyway...');
+      },
+    );
+  } catch (e) {
+    print('CodeManager init failed: $e');
+    // 即使初始化失败，也继续运行 App
+  }
   
   runApp(MyApp(codeManager: codeManager));
 }
@@ -39,7 +50,7 @@ class MyApp extends StatelessWidget {
         locale: const Locale('zh', 'CN'), // 默认中文
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.orange,
+            seedColor: Colors.blue,
             brightness: Brightness.light,
           ),
           useMaterial3: true,
@@ -59,7 +70,7 @@ class MyApp extends StatelessWidget {
         ),
         darkTheme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.orange,
+            seedColor: Colors.blue,
             brightness: Brightness.dark,
           ),
           useMaterial3: true,

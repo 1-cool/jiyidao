@@ -146,9 +146,6 @@ class PatternMatcher {
         // 提取来源
         String source = _extractSource(text, match);
         
-        // 提取过期时间
-        DateTime? expireTime = _extractExpireTime(text);
-        
         // 提取地点
         String? location = _extractLocation(text);
         
@@ -157,7 +154,6 @@ class PatternMatcher {
           type: rule.type,
           source: source,
           location: location,
-          expireTime: expireTime,
           rawMessage: text,
         );
       }
@@ -189,28 +185,6 @@ class PatternMatcher {
     
     // 默认来源
     return '未知来源';
-  }
-
-  /// 从文本中提取过期时间
-  static DateTime? _extractExpireTime(String text) {
-    // 匹配"X天内取件"、"X小时后过期"等
-    final dayPattern = RegExp(r'(\d+)\s*天[内后]');
-    final hourPattern = RegExp(r'(\d+)\s*小时[内后]');
-    
-    final dayMatch = dayPattern.firstMatch(text);
-    if (dayMatch != null) {
-      final days = int.tryParse(dayMatch.group(1) ?? '0') ?? 0;
-      return DateTime.now().add(Duration(days: days));
-    }
-    
-    final hourMatch = hourPattern.firstMatch(text);
-    if (hourMatch != null) {
-      final hours = int.tryParse(hourMatch.group(1) ?? '0') ?? 0;
-      return DateTime.now().add(Duration(hours: hours));
-    }
-    
-    // 默认3天后过期
-    return DateTime.now().add(const Duration(days: 3));
   }
 
   /// 从文本中提取地点
@@ -247,9 +221,6 @@ class MatchResult {
   /// 地点
   final String? location;
   
-  /// 过期时间
-  final DateTime? expireTime;
-  
   /// 原始消息
   final String rawMessage;
 
@@ -258,7 +229,6 @@ class MatchResult {
     required this.type,
     required this.source,
     this.location,
-    this.expireTime,
     required this.rawMessage,
   });
 
@@ -270,7 +240,6 @@ class MatchResult {
       type: type,
       source: source,
       location: location,
-      expireTime: expireTime ?? DateTime.now().add(const Duration(days: 3)),
       createTime: DateTime.now(),
       rawMessage: rawMessage,
     );

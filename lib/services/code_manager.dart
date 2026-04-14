@@ -18,9 +18,18 @@ class CodeManager extends ChangeNotifier {
 
   /// 初始化
   Future<void> init() async {
-    await _database.cleanExpiredCodes();
-    await _loadCodes();
-    await _notification.init();
+    try {
+      await _loadCodes();
+    } catch (e) {
+      print('Failed to load codes: $e');
+      // 加载失败时使用空列表
+      _codes = [];
+    }
+    
+    // 通知服务初始化（不阻塞主流程）
+    _notification.init().catchError((e) {
+      print('NotificationService init failed: $e');
+    });
   }
 
   /// 加载取件码列表
@@ -56,7 +65,7 @@ class CodeManager extends ChangeNotifier {
     await _notification.showCodeNotification(code);
   }
 
-  /// 手动添加取件码（无过期时间）
+  /// 手动添加取件码
   Future<CodeItem?> addManualCode({
     required String code,
     required CodeType type,
@@ -68,16 +77,12 @@ class CodeManager extends ChangeNotifier {
       return null;
     }
     
-    // 过期时间设为 100 年后（实际上永不过期）
-    final farFuture = DateTime.now().add(const Duration(days: 365 * 100));
-    
     final codeItem = CodeItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       code: code,
       type: type,
       source: source,
       location: location,
-      expireTime: farFuture,
       createTime: DateTime.now(),
     );
     
@@ -103,13 +108,6 @@ class CodeManager extends ChangeNotifier {
     
     // 取消通知
     await _notification.cancelNotification(id);
-  }
-
-  /// 清理所有已过期的取件码
-  Future<int> cleanExpiredCodes() async {
-    final count = await _database.cleanExpiredCodes();
-    await _loadCodes();
-    return count;
   }
 
   /// 清理所有已使用的取件码

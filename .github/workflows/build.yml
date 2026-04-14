@@ -64,23 +64,3 @@ jobs:
           name: memory-island-release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
-      
-      # 9. 创建 Release（每次推送都创建，可直接下载 APK）
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.version.outputs.version }}-build${{ steps.version.outputs.build_number }}-${{ github.run_number }}
-          name: 记忆岛 v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
-          body: |
-            ## 更新内容
-            
-            详见 commit 记录。
-            
-            ## 下载
-            
-            点击下方 `app-release.apk` 直接下载安装。
-          files: build/app/outputs/flutter-apk/app-release.apk
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

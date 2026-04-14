@@ -20,8 +20,6 @@ class CodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isExpired = code.isExpired;
-    
     return Slidable(
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
@@ -88,14 +86,10 @@ class CodeCard extends StatelessWidget {
                       // 取件码
                       Text(
                         code.code,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 2,
-                          color: isExpired ? Colors.grey : null,
-                          decoration: isExpired 
-                              ? TextDecoration.lineThrough 
-                              : null,
                         ),
                       ),
                       

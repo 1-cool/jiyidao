@@ -23,8 +23,9 @@ class DatabaseService {
     
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -37,7 +38,6 @@ class DatabaseService {
         type TEXT NOT NULL,
         source TEXT NOT NULL,
         location TEXT,
-        expireTime TEXT NOT NULL,
         createTime TEXT NOT NULL,
         rawMessage TEXT,
         isUsed INTEGER DEFAULT 0
@@ -45,8 +45,48 @@ class DatabaseService {
     ''');
     
     // 创建索引
-    await db.execute('CREATE INDEX idx_expireTime ON $_tableName(expireTime)');
     await db.execute('CREATE INDEX idx_isUsed ON $_tableName(isUsed)');
+  }
+
+  /// 数据库升级
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // 版本1到版本2：移除 expireTime 字段
+      // SQLite 不支持 DROP COLUMN，需要重建表
+      await db.execute('BEGIN TRANSACTION');
+      
+      // 创建新表
+      await db.execute('''
+        CREATE TABLE ${_tableName}_new (
+          id TEXT PRIMARY KEY,
+          code TEXT NOT NULL,
+          type TEXT NOT NULL,
+          source TEXT NOT NULL,
+          location TEXT,
+          createTime TEXT NOT NULL,
+          rawMessage TEXT,
+          isUsed INTEGER DEFAULT 0
+        )
+      ''');
+      
+      // 迁移数据
+      await db.execute('''
+        INSERT INTO ${_tableName}_new (id, code, type, source, location, createTime, rawMessage, isUsed)
+        SELECT id, code, type, source, location, createTime, rawMessage, isUsed
+        FROM $_tableName
+      ''');
+      
+      // 删除旧表
+      await db.execute('DROP TABLE $_tableName');
+      
+      // 重命名新表
+      await db.execute('ALTER TABLE ${_tableName}_new RENAME TO $_tableName');
+      
+      // 创建索引
+      await db.execute('CREATE INDEX idx_isUsed ON $_tableName(isUsed)');
+      
+      await db.execute('COMMIT');
+    }
   }
 
   /// 插入取件码
@@ -99,17 +139,6 @@ class DatabaseService {
       _tableName,
       where: 'id = ?',
       whereArgs: [id],
-    );
-  }
-
-  /// 清理过期取件码
-  Future<int> cleanExpiredCodes() async {
-    final db = await database;
-    final now = DateTime.now().toIso8601String();
-    return await db.delete(
-      _tableName,
-      where: 'expireTime < ?',
-      whereArgs: [now],
     );
   }
 
