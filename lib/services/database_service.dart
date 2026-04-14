@@ -61,39 +61,46 @@ class DatabaseService {
     if (oldVersion < 2) {
       // 版本1到版本2：移除 expireTime 字段
       // SQLite 不支持 DROP COLUMN，需要重建表
-      await db.execute('BEGIN TRANSACTION');
-      
-      // 创建新表
-      await db.execute('''
-        CREATE TABLE ${_tableName}_new (
-          id TEXT PRIMARY KEY,
-          code TEXT NOT NULL,
-          type TEXT NOT NULL,
-          source TEXT NOT NULL,
-          location TEXT,
-          createTime TEXT NOT NULL,
-          rawMessage TEXT,
-          isUsed INTEGER DEFAULT 0
-        )
-      ''');
-      
-      // 迁移数据
-      await db.execute('''
-        INSERT INTO ${_tableName}_new (id, code, type, source, location, createTime, rawMessage, isUsed)
-        SELECT id, code, type, source, location, createTime, rawMessage, isUsed
-        FROM $_tableName
-      ''');
-      
-      // 删除旧表
-      await db.execute('DROP TABLE $_tableName');
-      
-      // 重命名新表
-      await db.execute('ALTER TABLE ${_tableName}_new RENAME TO $_tableName');
-      
-      // 创建索引
-      await db.execute('CREATE INDEX idx_isUsed ON $_tableName(isUsed)');
-      
-      await db.execute('COMMIT');
+      try {
+        await db.execute('BEGIN TRANSACTION');
+
+        // 创建新表
+        await db.execute('''
+          CREATE TABLE ${_tableName}_new (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL,
+            type TEXT NOT NULL,
+            source TEXT NOT NULL,
+            location TEXT,
+            createTime TEXT NOT NULL,
+            rawMessage TEXT,
+            isUsed INTEGER DEFAULT 0
+          )
+        ''');
+
+        // 迁移数据
+        await db.execute('''
+          INSERT INTO ${_tableName}_new (id, code, type, source, location, createTime, rawMessage, isUsed)
+          SELECT id, code, type, source, location, createTime, rawMessage, isUsed
+          FROM $_tableName
+        ''');
+
+        // 删除旧表
+        await db.execute('DROP TABLE $_tableName');
+
+        // 重命名新表
+        await db.execute('ALTER TABLE ${_tableName}_new RENAME TO $_tableName');
+
+        // 创建索引
+        await db.execute('CREATE INDEX idx_isUsed ON $_tableName(isUsed)');
+
+        await db.execute('COMMIT');
+      } catch (e) {
+        // 失败时回滚
+        await db.execute('ROLLBACK');
+        print('Database upgrade failed: $e');
+        rethrow;
+      }
     }
   }
 

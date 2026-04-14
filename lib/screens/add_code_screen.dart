@@ -19,10 +19,11 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   final _sourceController = TextEditingController();
   final _locationController = TextEditingController();
   final _recognizeController = TextEditingController(); // 识别输入框
-  
+
   CodeType _selectedType = CodeType.express;
-  
+
   bool _isProcessing = false;
+  bool _hasCheckedClipboard = false; // 避免重复检查剪贴板
 
   @override
   void initState() {
@@ -42,9 +43,13 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
 
   /// 检查剪贴板是否有取件码
   Future<void> _checkClipboard() async {
+    // 避免重复检查
+    if (_hasCheckedClipboard) return;
+    _hasCheckedClipboard = true;
+
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
-    
+
     if (text != null && text.isNotEmpty) {
       final result = PatternMatcher.match(text);
       if (result != null && mounted) {
@@ -57,7 +62,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
             _locationController.text = result.location!;
           }
         });
-        
+
         // 提示用户
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('已从剪贴板识别取件码')),

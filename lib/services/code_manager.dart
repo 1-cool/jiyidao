@@ -25,9 +25,11 @@ class CodeManager extends ChangeNotifier {
       // 加载失败时使用空列表
       _codes = [];
     }
-    
+
     // 通知服务初始化（不阻塞主流程）
-    _notification.init().catchError((e) {
+    _notification.init().then((_) {
+      // 初始化成功
+    }).catchError((e) {
       print('NotificationService init failed: $e');
     });
   }
