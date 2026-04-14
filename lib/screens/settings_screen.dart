@@ -128,8 +128,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const Divider(),
           
-          // 下班提醒
-          _buildSectionHeader('下班提醒'),
+          // 取快递提醒
+          _buildSectionHeader('取快递提醒'),
           
           // 提醒模式选择
           ListTile(
@@ -170,8 +170,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: Text(
                         _reminderMode == ReminderMode.workday
-                            ? '将在周一至周五的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你拿快递'
-                            : '将在每天的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你拿快递',
+                            ? '将在周一至周五的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你取快递（仅当有待取快递时）'
+                            : '将在每天的 ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')} 提醒你取快递（仅当有待取快递时）',
                         style: TextStyle(color: Colors.blue[700], fontSize: 12),
                       ),
                     ),

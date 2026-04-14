@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/code_item.dart';
 import 'database_service.dart';
 import 'pattern_matcher.dart';
@@ -70,6 +71,11 @@ class CodeManager extends ChangeNotifier {
       print('发送通知失败: $e');
       // 通知失败不阻塞主流程，但可以提示用户
     }
+
+    // 如果是快递类型，更新取快递提醒
+    if (code.type == CodeType.express) {
+      _updateExpressReminder();
+    }
   }
 
   /// 手动添加取件码
@@ -99,22 +105,38 @@ class CodeManager extends ChangeNotifier {
 
   /// 标记为已使用
   Future<void> markAsUsed(String id) async {
+    final code = _codes.firstWhere((c) => c.id == id);
+    final wasExpress = code.type == CodeType.express;
+    
     await _database.markAsUsed(id);
     _codes.removeWhere((code) => code.id == id);
     notifyListeners();
     
     // 取消通知
     await _notification.cancelNotification(id);
+
+    // 如果是快递类型，更新取快递提醒
+    if (wasExpress) {
+      _updateExpressReminder();
+    }
   }
 
   /// 删除取件码
   Future<void> deleteCode(String id) async {
+    final code = _codes.firstWhere((c) => c.id == id);
+    final wasExpress = code.type == CodeType.express;
+    
     await _database.deleteCode(id);
     _codes.removeWhere((code) => code.id == id);
     notifyListeners();
     
     // 取消通知
     await _notification.cancelNotification(id);
+
+    // 如果是快递类型，更新取快递提醒
+    if (wasExpress) {
+      _updateExpressReminder();
+    }
   }
 
   /// 清理所有已使用的取件码
@@ -133,5 +155,40 @@ class CodeManager extends ChangeNotifier {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  /// 更新取快递提醒
+  /// 
+  /// 根据当前快递数量和设置决定是否启用提醒
+  Future<void> _updateExpressReminder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final modeIndex = prefs.getInt('reminder_mode') ?? 1;
+      
+      // 如果提醒已关闭，不做任何操作
+      if (modeIndex == 2) return; // ReminderMode.disabled.index = 2
+      
+      final hour = prefs.getInt('reminder_hour') ?? 18;
+      final minute = prefs.getInt('reminder_minute') ?? 30;
+      final workdayOnly = modeIndex == 1; // ReminderMode.workday.index = 1
+
+      // 检查是否有快递类型的取件码
+      final hasExpress = _codes.any((code) => code.type == CodeType.express);
+
+      if (hasExpress) {
+        // 有快递，设置提醒
+        await _notification.scheduleDailyReminder(
+          hour: hour,
+          minute: minute,
+          workdayOnly: workdayOnly,
+        );
+      } else {
+        // 没有快递，取消提醒
+        await _notification.cancelDailyReminder(workdayOnly: true);
+        await _notification.cancelDailyReminder(workdayOnly: false);
+      }
+    } catch (e) {
+      print('更新取快递提醒失败: $e');
+    }
   }
 }

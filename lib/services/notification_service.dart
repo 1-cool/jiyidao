@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/code_item.dart';
+import 'database_service.dart';
 
 /// 通知服务
 /// 
@@ -191,6 +192,8 @@ class NotificationService {
   /// [hour] 小时 (0-23)
   /// [minute] 分钟 (0-59)
   /// [workdayOnly] 是否仅工作日提醒
+  /// 
+  /// 注意：只有存在快递类型的取件码时才会提醒
   Future<bool> scheduleDailyReminder({
     required int hour,
     required int minute,
@@ -229,8 +232,8 @@ class NotificationService {
           // DateTime.monday = 1, ..., DateTime.friday = 5
           await _notifications.zonedSchedule(
             day, // 使用星期几作为 ID
-            '📦 下班提醒',
-            '别忘了拿快递哦！',
+            '📦 取快递提醒',
+            '你有快递待取，别忘了哦！',
             _nextInstanceOfWeekdayTime(day, hour, minute),
             notificationDetails,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -243,8 +246,8 @@ class NotificationService {
         // 每天提醒
         await _notifications.zonedSchedule(
           0,
-          '📦 下班提醒',
-          '别忘了拿快递哦！',
+          '📦 取快递提醒',
+          '你有快递待取，别忘了哦！',
           _nextInstanceOfTime(hour, minute),
           notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
