@@ -9,8 +9,11 @@ import 'pattern_matcher.dart';
 /// 
 /// 通过 EventChannel 接收原生层的短信取件码事件
 class SmsListenerService {
-  static const String _channelName = 'com.pincode.app/sms_receiver';
-  static const EventChannel _eventChannel = EventChannel(_channelName);
+  static const String _eventChannelName = 'com.pincode.app/sms_receiver';
+  static const String _methodChannelName = 'com.pincode.app/method';
+  
+  static const EventChannel _eventChannel = EventChannel(_eventChannelName);
+  static const MethodChannel _methodChannel = MethodChannel(_methodChannelName);
   
   static const String _prefKey = 'sms_listener_enabled';
   
@@ -32,9 +35,12 @@ class SmsListenerService {
   Future<void> init(CodeManager codeManager) async {
     _codeManager = codeManager;
     
-    // 读取设置
+    // 读取设置（默认关闭，需要用户主动开启）
     final prefs = await SharedPreferences.getInstance();
-    _isEnabled = prefs.getBool(_prefKey) ?? true; // 默认启用
+    _isEnabled = prefs.getBool(_prefKey) ?? false;
+    
+    // 同步到原生层
+    await _methodChannel.invokeMethod('setSmsListenerEnabled', _isEnabled);
     
     if (_isEnabled) {
       _startListening();
@@ -46,8 +52,13 @@ class SmsListenerService {
     if (_isEnabled) return;
     
     _isEnabled = true;
+    
+    // 保存设置
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, true);
+    
+    // 同步到原生层
+    await _methodChannel.invokeMethod('setSmsListenerEnabled', true);
     
     _startListening();
   }
@@ -57,8 +68,13 @@ class SmsListenerService {
     if (!_isEnabled) return;
     
     _isEnabled = false;
+    
+    // 保存设置
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, false);
+    
+    // 同步到原生层
+    await _methodChannel.invokeMethod('setSmsListenerEnabled', false);
     
     _stopListening();
   }

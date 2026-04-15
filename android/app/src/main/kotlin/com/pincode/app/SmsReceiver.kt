@@ -14,6 +14,7 @@ import android.util.Log
 class SmsReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "SmsReceiver"
+        private const val PREF_SMS_ENABLED = "sms_listener_enabled"
         
         // 取件码正则表达式
         private val CODE_PATTERNS = listOf(
@@ -31,6 +32,14 @@ class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        
+        // 检查开关状态
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean(PREF_SMS_ENABLED, false)
+        if (!enabled) {
+            Log.d(TAG, "短信监听已关闭，跳过处理")
+            return
+        }
         
         Log.d(TAG, "收到短信广播")
         
@@ -77,8 +86,7 @@ class SmsReceiver : BroadcastReceiver() {
      * 通知 Flutter 层
      */
     private fun notifyFlutter(context: Context, code: String, body: String, sender: String) {
-        // 通过 EventChannel 或 MethodChannel 通知 Flutter
-        // 这里简化处理，实际需要通过 FlutterEngine 通信
+        // 通过广播通知 MainActivity
         val intent = Intent("com.pincode.app.SMS_CODE_RECEIVED").apply {
             putExtra("code", code)
             putExtra("body", body)
