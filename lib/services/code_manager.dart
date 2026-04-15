@@ -28,11 +28,55 @@ class CodeManager extends ChangeNotifier {
     }
 
     // 通知服务初始化（不阻塞主流程）
-    _notification.init().then((_) {
-      // 初始化成功
+    _notification.init().then((_) async {
+      // 初始化成功后，重新显示所有取件码的通知
+      await _restoreNotifications();
+      // 恢复定时提醒设置
+      await _restoreDailyReminder();
     }).catchError((e) {
       print('NotificationService init failed: $e');
     });
+  }
+  
+  /// 恢复所有取件码的通知
+  Future<void> _restoreNotifications() async {
+    for (final code in _codes) {
+      try {
+        await _notification.showCodeNotification(code);
+      } catch (e) {
+        print('恢复通知失败: ${code.code}, $e');
+      }
+    }
+    print('已恢复 ${_codes.length} 个取件码的通知');
+  }
+  
+  /// 恢复定时提醒设置
+  Future<void> _restoreDailyReminder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final modeIndex = prefs.getInt('reminder_mode');
+      
+      // 如果没有设置或已关闭，不恢复
+      if (modeIndex == null || modeIndex == 2) return; // ReminderMode.disabled.index = 2
+      
+      final hour = prefs.getInt('reminder_hour') ?? 18;
+      final minute = prefs.getInt('reminder_minute') ?? 30;
+      final workdayOnly = modeIndex == 1; // ReminderMode.workday.index = 1
+      
+      // 检查是否有快递类型的取件码
+      final hasExpress = _codes.any((code) => code.type == CodeType.express);
+      
+      if (hasExpress) {
+        await _notification.scheduleDailyReminder(
+          hour: hour,
+          minute: minute,
+          workdayOnly: workdayOnly,
+        );
+        print('已恢复定时提醒: $hour:$minute, 工作日: $workdayOnly');
+      }
+    } catch (e) {
+      print('恢复定时提醒失败: $e');
+    }
   }
 
   /// 加载取件码列表
