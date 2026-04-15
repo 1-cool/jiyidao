@@ -196,8 +196,11 @@ class NotificationService {
     bool workdayOnly = true,
   }) async {
     try {
+      print('开始设置定时提醒: $hour:$minute, 工作日: $workdayOnly');
+      
       // Android 12+ 检查精确闹钟权限
       if (await Permission.scheduleExactAlarm.isDenied) {
+        print('请求精确闹钟权限...');
         final granted = await Permission.scheduleExactAlarm.request();
         if (!granted.isGranted) {
           print('精确闹钟权限未授予');
@@ -205,8 +208,20 @@ class NotificationService {
         }
       }
       
+      // 确保时区已初始化
+      try {
+        tz_data.initializeTimeZones();
+        tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
+        print('时区已设置: ${tz.local}');
+      } catch (e) {
+        print('时区设置失败: $e');
+      }
+      
       // 先取消已有的定时提醒
-      await _notifications.cancel(id: 0); // 使用固定 ID 0 作为提醒通知
+      await _notifications.cancel(id: 0);
+      for (int day in [1, 2, 3, 4, 5]) {
+        await _notifications.cancel(id: day);
+      }
 
       final androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -231,15 +246,15 @@ class NotificationService {
 
       if (workdayOnly) {
         // 工作日提醒：周一至周五
-        // 由于 flutter_local_notifications 不直接支持"工作日"，
-        // 我们需要为每一天分别设置
         for (int day in [1, 2, 3, 4, 5]) {
-          // DateTime.monday = 1, ..., DateTime.friday = 5
+          final scheduledDate = _nextInstanceOfWeekdayTime(day, hour, minute);
+          print('设置周${day}提醒: $scheduledDate');
+          
           await _notifications.zonedSchedule(
-            id: day, // 使用星期几作为 ID
+            id: day,
             title: '📦 取快递提醒',
             body: '你有快递待取，别忘了哦！',
-            scheduledDate: _nextInstanceOfWeekdayTime(day, hour, minute),
+            scheduledDate: scheduledDate,
             notificationDetails: notificationDetails,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
@@ -247,20 +262,25 @@ class NotificationService {
         }
       } else {
         // 每天提醒
+        final scheduledDate = _nextInstanceOfTime(hour, minute);
+        print('设置每天提醒: $scheduledDate');
+        
         await _notifications.zonedSchedule(
           id: 0,
           title: '📦 取快递提醒',
           body: '你有快递待取，别忘了哦！',
-          scheduledDate: _nextInstanceOfTime(hour, minute),
+          scheduledDate: scheduledDate,
           notificationDetails: notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time,
         );
       }
 
+      print('定时提醒设置成功');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('设置定时提醒失败: $e');
+      print('堆栈: $stackTrace');
       return false;
     }
   }

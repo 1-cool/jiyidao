@@ -57,23 +57,22 @@ class CodeManager extends ChangeNotifier {
       final modeIndex = prefs.getInt('reminder_mode');
       
       // 如果没有设置或已关闭，不恢复
-      if (modeIndex == null || modeIndex == 2) return; // ReminderMode.disabled.index = 2
+      if (modeIndex == null || modeIndex == 2) {
+        print('定时提醒未设置或已关闭');
+        return;
+      }
       
       final hour = prefs.getInt('reminder_hour') ?? 18;
       final minute = prefs.getInt('reminder_minute') ?? 30;
-      final workdayOnly = modeIndex == 1; // ReminderMode.workday.index = 1
+      final workdayOnly = modeIndex == 1;
       
-      // 检查是否有快递类型的取件码
-      final hasExpress = _codes.any((code) => code.type == CodeType.express);
+      print('恢复定时提醒: $hour:$minute, 工作日: $workdayOnly');
       
-      if (hasExpress) {
-        await _notification.scheduleDailyReminder(
-          hour: hour,
-          minute: minute,
-          workdayOnly: workdayOnly,
-        );
-        print('已恢复定时提醒: $hour:$minute, 工作日: $workdayOnly');
-      }
+      await _notification.scheduleDailyReminder(
+        hour: hour,
+        minute: minute,
+        workdayOnly: workdayOnly,
+      );
     } catch (e) {
       print('恢复定时提醒失败: $e');
     }
