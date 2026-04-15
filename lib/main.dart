@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
+import 'services/sms_listener_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_manager.dart';
@@ -28,20 +29,27 @@ void main() async {
     // 即使初始化失败，也继续运行 App
   }
   
+  // 初始化短信监听服务
+  final smsListener = SmsListenerService();
+  await smsListener.init(codeManager);
+  
   runApp(MyApp(
     codeManager: codeManager,
     themeManager: themeManager,
+    smsListener: smsListener,
   ));
 }
 
 class MyApp extends StatelessWidget {
   final CodeManager codeManager;
   final ThemeManager themeManager;
+  final SmsListenerService smsListener;
 
   const MyApp({
     super.key,
     required this.codeManager,
     required this.themeManager,
+    required this.smsListener,
   });
 
   @override
@@ -50,6 +58,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<CodeManager>.value(value: codeManager),
         ChangeNotifierProvider<ThemeManager>.value(value: themeManager),
+        Provider<SmsListenerService>.value(value: smsListener),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, child) {

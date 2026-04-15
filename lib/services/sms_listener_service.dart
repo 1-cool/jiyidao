@@ -1,0 +1,133 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/code_item.dart';
+import 'code_manager.dart';
+import 'pattern_matcher.dart';
+
+/// 短信监听服务
+/// 
+/// 通过 EventChannel 接收原生层的短信取件码事件
+class SmsListenerService {
+  static const String _channelName = 'com.pincode.app/sms_receiver';
+  static const EventChannel _eventChannel = EventChannel(_channelName);
+  
+  static const String _prefKey = 'sms_listener_enabled';
+  
+  StreamSubscription? _subscription;
+  CodeManager? _codeManager;
+  
+  /// 单例模式
+  static final SmsListenerService _instance = SmsListenerService._internal();
+  factory SmsListenerService() => _instance;
+  SmsListenerService._internal();
+  
+  /// 是否已启用
+  bool _isEnabled = false;
+  bool get isEnabled => _isEnabled;
+  
+  /// 初始化服务
+  /// 
+  /// [codeManager] 取件码管理器，用于自动添加识别到的取件码
+  Future<void> init(CodeManager codeManager) async {
+    _codeManager = codeManager;
+    
+    // 读取设置
+    final prefs = await SharedPreferences.getInstance();
+    _isEnabled = prefs.getBool(_prefKey) ?? true; // 默认启用
+    
+    if (_isEnabled) {
+      _startListening();
+    }
+  }
+  
+  /// 启用短信监听
+  Future<void> enable() async {
+    if (_isEnabled) return;
+    
+    _isEnabled = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefKey, true);
+    
+    _startListening();
+  }
+  
+  /// 禁用短信监听
+  Future<void> disable() async {
+    if (!_isEnabled) return;
+    
+    _isEnabled = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefKey, false);
+    
+    _stopListening();
+  }
+  
+  /// 切换开关
+  Future<void> toggle() async {
+    if (_isEnabled) {
+      await disable();
+    } else {
+      await enable();
+    }
+  }
+  
+  /// 开始监听
+  void _startListening() {
+    _subscription?.cancel();
+    
+    _subscription = _eventChannel.receiveBroadcastStream().listen(
+      (dynamic event) {
+        _handleSmsEvent(event as Map);
+      },
+      onError: (dynamic error) {
+        print('SmsListenerService 错误: $error');
+      },
+      onDone: () {
+        print('SmsListenerService 流结束');
+      },
+    );
+    
+    print('SmsListenerService 已启动');
+  }
+  
+  /// 停止监听
+  void _stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    print('SmsListenerService 已停止');
+  }
+  
+  /// 处理短信事件
+  Future<void> _handleSmsEvent(Map event) async {
+    final code = event['code'] as String?;
+    final body = event['body'] as String?;
+    final sender = event['sender'] as String?;
+    
+    if (code == null || _codeManager == null) return;
+    
+    print('收到短信取件码: $code, 来源: $sender');
+    
+    // 使用 PatternMatcher 解析完整信息
+    if (body != null) {
+      final result = PatternMatcher.match(body);
+      if (result != null) {
+        // 创建取件码项
+        final codeItem = result.toCodeItem();
+        
+        // 检查是否已存在
+        if (!await _codeManager!.codeExists(codeItem.code)) {
+          await _codeManager!.addCode(codeItem);
+          print('已自动添加取件码: ${codeItem.code}');
+        } else {
+          print('取件码已存在，跳过: $code');
+        }
+      }
+    }
+  }
+  
+  /// 释放资源
+  void dispose() {
+    _stopListening();
+  }
+}

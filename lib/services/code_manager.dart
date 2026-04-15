@@ -150,6 +150,11 @@ class CodeManager extends ChangeNotifier {
   Future<void> refresh() async {
     await _loadCodes();
   }
+  
+  /// 检查取件码是否已存在
+  Future<bool> codeExists(String code) async {
+    return await _database.codeExists(code);
+  }
 
   /// 释放资源
   @override

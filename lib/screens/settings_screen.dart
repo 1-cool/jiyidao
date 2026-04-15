@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
+import '../services/sms_listener_service.dart';
 import '../theme/theme_manager.dart';
 
 /// 提醒模式
@@ -131,6 +132,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _selectThemeMode(context, themeManager),
               );
             },
+          ),
+          
+          const Divider(),
+          
+          // 短信识别设置
+          _buildSectionHeader('短信识别'),
+          
+          Consumer<SmsListenerService>(
+            builder: (context, smsListener, child) {
+              return ListTile(
+                leading: const Icon(Icons.sms_outlined),
+                title: const Text('短信自动识别'),
+                subtitle: Text(smsListener.isEnabled ? '已开启' : '已关闭'),
+                trailing: Switch(
+                  value: smsListener.isEnabled,
+                  onChanged: (value) async {
+                    if (value) {
+                      // 开启前检查短信权限
+                      final status = await Permission.sms.status;
+                      if (!status.isGranted) {
+                        final result = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('需要短信权限'),
+                            content: const Text('开启短信识别需要授予短信读取权限。是否继续？'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('取消'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('授权'),
+                              ),
+                            ],
+                          ),
+                        );
+                        
+                        if (result != true) return;
+                        
+                        final granted = await Permission.sms.request();
+                        if (!granted.isGranted) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('短信权限未授予')),
+                            );
+                          }
+                          return;
+                        }
+                      }
+                      await smsListener.enable();
+                    } else {
+                      await smsListener.disable();
+                    }
+                    // 触发 UI 更新
+                    setState(() {});
+                  },
+                ),
+              );
+            },
+          ),
+          
+          // 短信识别说明
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '开启后，收到取件短信时会自动识别并添加到列表。关闭后将不再读取短信。',
+                      style: TextStyle(color: Colors.orange[700], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           
           const Divider(),
