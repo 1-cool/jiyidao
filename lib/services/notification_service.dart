@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/data/latest.dart' as tz_data';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/code_item.dart';
 
 /// 通知服务
@@ -195,6 +196,15 @@ class NotificationService {
     bool workdayOnly = true,
   }) async {
     try {
+      // Android 12+ 检查精确闹钟权限
+      if (await Permission.scheduleExactAlarm.isDenied) {
+        final granted = await Permission.scheduleExactAlarm.request();
+        if (!granted.isGranted) {
+          print('精确闹钟权限未授予');
+          return false;
+        }
+      }
+      
       // 先取消已有的定时提醒
       await _notifications.cancel(id: 0); // 使用固定 ID 0 作为提醒通知
 
