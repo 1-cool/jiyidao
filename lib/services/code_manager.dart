@@ -10,12 +10,16 @@ import 'notification_service.dart';
 /// 负责取件码的业务逻辑处理
 class CodeManager extends ChangeNotifier {
   final DatabaseService _database = DatabaseService();
-  final NotificationService _notification = NotificationService();
+  final NotificationService _notification;
   
   /// 取件码列表（用于UI展示）
   List<CodeItem> _codes = [];
   
   List<CodeItem> get codes => _codes;
+  
+  /// 构造函数，接收 NotificationService 实例
+  CodeManager({NotificationService? notificationService}) 
+      : _notification = notificationService ?? NotificationService();
 
   /// 初始化
   Future<void> init() async {
@@ -27,15 +31,9 @@ class CodeManager extends ChangeNotifier {
       _codes = [];
     }
 
-    // 通知服务初始化（不阻塞主流程）
-    _notification.init().then((_) async {
-      // 初始化成功后，重新显示所有取件码的通知
-      await _restoreNotifications();
-      // 恢复定时提醒设置
-      await _restoreDailyReminder();
-    }).catchError((e) {
-      print('NotificationService init failed: $e');
-    });
+    // 恢复通知和定时提醒（NotificationService 已在 main.dart 中初始化）
+    await _restoreNotifications();
+    await _restoreDailyReminder();
   }
   
   /// 恢复所有取件码的通知

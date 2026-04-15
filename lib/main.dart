@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
+import 'services/notification_service.dart';
 import 'services/sms_listener_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
@@ -14,8 +15,12 @@ void main() async {
   final themeManager = ThemeManager();
   await themeManager.init();
   
+  // 初始化通知服务
+  final notificationService = NotificationService();
+  await notificationService.init();
+  
   // 初始化取件码管理器（带超时保护，防止卡启动页）
-  final codeManager = CodeManager();
+  final codeManager = CodeManager(notificationService: notificationService);
   try {
     // 设置 5 秒超时，避免初始化卡住
     await codeManager.init().timeout(
@@ -37,6 +42,7 @@ void main() async {
     codeManager: codeManager,
     themeManager: themeManager,
     smsListener: smsListener,
+    notificationService: notificationService,
   ));
 }
 
@@ -44,12 +50,14 @@ class MyApp extends StatelessWidget {
   final CodeManager codeManager;
   final ThemeManager themeManager;
   final SmsListenerService smsListener;
+  final NotificationService notificationService;
 
   const MyApp({
     super.key,
     required this.codeManager,
     required this.themeManager,
     required this.smsListener,
+    required this.notificationService,
   });
 
   @override
@@ -59,6 +67,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<CodeManager>.value(value: codeManager),
         ChangeNotifierProvider<ThemeManager>.value(value: themeManager),
         Provider<SmsListenerService>.value(value: smsListener),
+        Provider<NotificationService>.value(value: notificationService),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, child) {

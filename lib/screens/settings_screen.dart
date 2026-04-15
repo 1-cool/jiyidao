@@ -82,14 +82,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// 设置定时提醒
   Future<void> _scheduleReminder() async {
-    final notificationService = NotificationService();
-    await notificationService.init();
+    // 使用全局 NotificationService 实例
+    final notificationService = context.read<NotificationService>();
+    
+    debugPrint('开始设置定时提醒: ${_reminderTime.hour}:${_reminderTime.minute}, 模式: $_reminderMode');
     
     final success = await notificationService.scheduleDailyReminder(
       hour: _reminderTime.hour,
       minute: _reminderTime.minute,
       workdayOnly: _reminderMode == ReminderMode.workday,
     );
+    
+    debugPrint('设置定时提醒结果: $success');
     
     if (mounted) {
       if (success) {
@@ -293,7 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('版本'),
-            subtitle: Text('v1.0.4'),
+            subtitle: Text('v1.0.5'),
           ),
           
 
