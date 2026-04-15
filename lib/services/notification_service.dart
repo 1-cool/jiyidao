@@ -2,7 +2,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/code_item.dart';
-import 'database_service.dart';
 
 /// 通知服务
 /// 
@@ -39,8 +38,9 @@ class NotificationService {
         iOS: iosSettings,
       );
 
+      // flutter_local_notifications 21.x: 所有参数改为命名参数
       await _notifications.initialize(
-        initSettings,
+        settings: initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
 
@@ -60,7 +60,7 @@ class NotificationService {
     if (androidPlugin != null) {
       // 先尝试删除旧渠道（如果存在）
       try {
-        await androidPlugin.deleteNotificationChannel('pincode_channel');
+        await androidPlugin.deleteNotificationChannel(channelId: 'pincode_channel');
       } catch (e) {
         // 渠道不存在，忽略错误
       }
@@ -121,6 +121,7 @@ class NotificationService {
     // 使用时间戳作为通知ID，确保每个码都有独立通知
     final notificationId = code.id.hashCode;
 
+    // flutter_local_notifications 21.x: 所有参数改为命名参数
     await _notifications.show(
       id: notificationId,
       title: '${code.type.emoji} 取件码',
@@ -138,7 +139,8 @@ class NotificationService {
   /// 取消通知
   Future<void> cancelNotification(String codeId) async {
     final notificationId = codeId.hashCode;
-    await _notifications.cancel(notificationId);
+    // flutter_local_notifications 21.x: cancel 也需要命名参数
+    await _notifications.cancel(id: notificationId);
   }
 
   /// 取消所有通知
@@ -194,7 +196,7 @@ class NotificationService {
   }) async {
     try {
       // 先取消已有的定时提醒
-      await _notifications.cancel(0); // 使用固定 ID 0 作为提醒通知
+      await _notifications.cancel(id: 0); // 使用固定 ID 0 作为提醒通知
 
       final androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -258,11 +260,11 @@ class NotificationService {
     if (workdayOnly) {
       // 取消工作日提醒 (ID 1-5)
       for (int day in [1, 2, 3, 4, 5]) {
-        await _notifications.cancel(day);
+        await _notifications.cancel(id: day);
       }
     } else {
       // 取消每天提醒 (ID 0)
-      await _notifications.cancel(0);
+      await _notifications.cancel(id: 0);
     }
   }
 
