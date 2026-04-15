@@ -122,10 +122,10 @@ class NotificationService {
     final notificationId = code.id.hashCode;
 
     await _notifications.show(
-      notificationId,
-      '${code.type.emoji} 取件码',
-      code.code,
-      notificationDetails,
+      id: notificationId,
+      title: '${code.type.emoji} 取件码',
+      body: code.code,
+      notificationDetails: notificationDetails,
       payload: code.id,
     );
   }
@@ -224,28 +224,24 @@ class NotificationService {
         for (int day in [1, 2, 3, 4, 5]) {
           // DateTime.monday = 1, ..., DateTime.friday = 5
           await _notifications.zonedSchedule(
-            day, // 使用星期几作为 ID
-            '📦 取快递提醒',
-            '你有快递待取，别忘了哦！',
-            _nextInstanceOfWeekdayTime(day, hour, minute),
-            notificationDetails,
+            id: day, // 使用星期几作为 ID
+            title: '📦 取快递提醒',
+            body: '你有快递待取，别忘了哦！',
+            scheduledDate: _nextInstanceOfWeekdayTime(day, hour, minute),
+            notificationDetails: notificationDetails,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           );
         }
       } else {
         // 每天提醒
         await _notifications.zonedSchedule(
-          0,
-          '📦 取快递提醒',
-          '你有快递待取，别忘了哦！',
-          _nextInstanceOfTime(hour, minute),
-          notificationDetails,
+          id: 0,
+          title: '📦 取快递提醒',
+          body: '你有快递待取，别忘了哦！',
+          scheduledDate: _nextInstanceOfTime(hour, minute),
+          notificationDetails: notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
       }
