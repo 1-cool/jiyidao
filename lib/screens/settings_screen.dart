@@ -113,6 +113,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
   }
+  
+  /// 测试定时提醒（10秒后触发）
+  Future<void> _testScheduledReminder() async {
+    final notificationService = context.read<NotificationService>();
+    
+    final success = await notificationService.testScheduledReminder(seconds: 10);
+    
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已设置测试提醒，10秒后查看通知栏')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('测试提醒设置失败')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,6 +252,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('点击检查通知权限状态'),
             trailing: const Icon(Icons.chevron_right),
             onTap: _checkNotificationPermission,
+          ),
+          
+          // 测试定时提醒
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('测试定时提醒'),
+            subtitle: const Text('10秒后发送测试通知'),
+            trailing: const Icon(Icons.play_arrow),
+            onTap: _testScheduledReminder,
           ),
           
           const Divider(),

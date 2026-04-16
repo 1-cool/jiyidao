@@ -11,10 +11,15 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications = 
       FlutterLocalNotificationsPlugin();
   
-  // 通知渠道 ID 带版本号，删除旧渠道后递增版本即可重建
+  // 取件码通知渠道
   static const String _channelId = 'pincode_channel_v2';
   static const String _channelName = '取件码通知';
   static const String _channelDescription = '显示取件码、取餐码等信息';
+  
+  // 定时提醒通知渠道（独立渠道，方便用户管理）
+  static const String _reminderChannelId = 'reminder_channel_v1';
+  static const String _reminderChannelName = '定时提醒';
+  static const String _reminderChannelDescription = '取快递定时提醒通知';
 
   /// 初始化通知服务（非阻塞）
   Future<void> init() async {
@@ -22,7 +27,9 @@ class NotificationService {
     try {
       // 初始化时区数据库
       tz_data.initializeTimeZones();
-      tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
+      final location = tz.getLocation('Asia/Shanghai');
+      tz.setLocalLocation(location);
+      print('时区初始化成功: ${tz.local.name}');
 
       // Android 初始化设置
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -44,11 +51,13 @@ class NotificationService {
         settings: initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
+      print('通知服务初始化成功');
 
       // 创建通知渠道（同步等待，确保渠道创建成功）
       await _createNotificationChannel();
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('NotificationService init failed: $e');
+      print('堆栈: $stackTrace');
       // 不抛出异常，允许 App 继续运行
     }
   }
@@ -66,7 +75,7 @@ class NotificationService {
         // 渠道不存在，忽略错误
       }
 
-      // 创建新渠道
+      // 创建取件码通知渠道
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
@@ -76,6 +85,21 @@ class NotificationService {
           showBadge: true,
         ),
       );
+      
+      // 创建定时提醒通知渠道（独立渠道）
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _reminderChannelId,
+          _reminderChannelName,
+          description: _reminderChannelDescription,
+          importance: Importance.max,
+          showBadge: true,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+      
+      print('通知渠道创建成功: $_channelId, $_reminderChannelId');
     }
   }
 
@@ -223,14 +247,17 @@ class NotificationService {
         await _notifications.cancel(id: day);
       }
 
+      // 使用独立的定时提醒渠道
       final androidDetails = AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDescription,
+        _reminderChannelId,
+        _reminderChannelName,
+        channelDescription: _reminderChannelDescription,
         importance: Importance.max,
         priority: Priority.max,
         showWhen: true,
         visibility: NotificationVisibility.public,
+        playSound: true,
+        enableVibration: true,
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -295,6 +322,109 @@ class NotificationService {
     } else {
       // 取消每天提醒 (ID 0)
       await _notifications.cancel(id: 0);
+    }
+  }
+  
+  /// 发送测试通知（用于调试）
+  Future<void> sendTestNotification() async {
+    try {
+      print('发送测试通知...');
+      
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        visibility: NotificationVisibility.public,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        id: 999999,
+        title: '📦 测试通知',
+        body: '如果你看到这条通知，说明通知功能正常！',
+        notificationDetails: notificationDetails,
+      );
+      
+      print('测试通知发送成功');
+    } catch (e) {
+      print('发送测试通知失败: $e');
+    }
+  }
+  
+  /// 测试定时提醒（几秒后触发）
+  /// 
+  /// [seconds] 多少秒后触发提醒
+  Future<bool> testScheduledReminder({int seconds = 10}) async {
+    try {
+      print('测试定时提醒: $seconds 秒后触发');
+      
+      // 确保时区已初始化
+      tz_data.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
+      
+      // 计算触发时间
+      final now = tz.TZDateTime.now(tz.local);
+      final scheduledDate = now.add(Duration(seconds: seconds));
+      
+      print('当前时间: $now');
+      print('计划时间: $scheduledDate');
+      
+      // 先取消已有的测试提醒
+      await _notifications.cancel(id: 999998);
+      
+      // 使用独立的定时提醒渠道
+      final androidDetails = AndroidNotificationDetails(
+        _reminderChannelId,
+        _reminderChannelName,
+        channelDescription: _reminderChannelDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        visibility: NotificationVisibility.public,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      await _notifications.zonedSchedule(
+        id: 999998,
+        title: '📦 定时提醒测试',
+        body: '如果你看到这条通知，说明定时提醒功能正常！',
+        scheduledDate: scheduledDate,
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      
+      print('定时提醒已设置，将在 $seconds 秒后触发');
+      return true;
+    } catch (e, stackTrace) {
+      print('测试定时提醒失败: $e');
+      print('堆栈: $stackTrace');
+      return false;
     }
   }
 
