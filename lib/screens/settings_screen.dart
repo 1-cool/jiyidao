@@ -136,15 +136,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _checkNotificationPermission,
           ),
           
-          // 测试定时提醒
-          ListTile(
-            leading: const Icon(Icons.timer_outlined),
-            title: const Text('测试定时提醒'),
-            subtitle: const Text('10秒后发送测试通知'),
-            trailing: const Icon(Icons.play_arrow),
-            onTap: _testScheduledReminder,
-          ),
-          
           const Divider(),
           
           // 取快递提醒
@@ -222,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('版本'),
-            subtitle: Text('v1.0.6'),
+            subtitle: Text('v1.0.21'),
           ),
           
 
@@ -377,19 +368,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     if (result != null) {
       await themeManager.setThemeMode(result);
-    }
-  }
-  
-  /// 测试定时提醒（10秒后触发）
-  Future<void> _testScheduledReminder() async {
-    final reminderService = context.read<ReminderService>();
-    
-    await reminderService.testReminder(seconds: 10);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已设置测试提醒，10秒后查看通知栏')),
-      );
     }
   }
 }
