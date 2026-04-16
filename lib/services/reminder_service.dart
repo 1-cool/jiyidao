@@ -20,6 +20,7 @@ class ReminderService extends ChangeNotifier {
   int _reminderMinute = 30;
   ReminderMode _reminderMode = ReminderMode.workday;
   bool _isRunning = false;
+  DateTime? _lastTriggerDate; // 防止重复触发
   
   ReminderService({required NotificationService notificationService})
       : _notificationService = notificationService;
@@ -137,6 +138,14 @@ class ReminderService extends ChangeNotifier {
     if (now.hour == _reminderHour && 
         (now.minute - _reminderMinute).abs() <= 1) {
       
+      // 防止同一分钟内重复触发
+      final todayKey = DateTime(now.year, now.month, now.day, now.hour, now.minute);
+      if (_lastTriggerDate != null && 
+          _lastTriggerDate!.difference(todayKey).inMinutes.abs() < 2) {
+        debugPrint('刚刚已触发过，跳过');
+        return;
+      }
+      
       // 检查是否是工作日模式
       if (_reminderMode == ReminderMode.workday) {
         final weekday = now.weekday;
@@ -145,6 +154,9 @@ class ReminderService extends ChangeNotifier {
           return;
         }
       }
+      
+      // 记录触发时间
+      _lastTriggerDate = todayKey;
       
       // 发送提醒通知
       _sendReminderNotification();

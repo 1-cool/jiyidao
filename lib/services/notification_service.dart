@@ -241,7 +241,7 @@ class NotificationService {
         print('时区设置失败: $e');
       }
       
-      // 先取消已有的定时提醒
+      // 先取消所有定时提醒（包括工作日和每天模式）
       await _notifications.cancel(id: 0);
       for (int day in [1, 2, 3, 4, 5]) {
         await _notifications.cancel(id: day);

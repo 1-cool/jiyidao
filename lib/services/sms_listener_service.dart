@@ -120,12 +120,12 @@ class SmsListenerService {
     final body = event['body'] as String?;
     final sender = event['sender'] as String?;
     
-    if (code == null || _codeManager == null) return;
+    if (_codeManager == null) return;
     
-    print('收到短信取件码: $code, 来源: $sender');
+    print('收到短信取件码事件: code=$code, sender=$sender');
     
-    // 使用 PatternMatcher 解析完整信息
-    if (body != null) {
+    // 优先使用 body 解析完整信息
+    if (body != null && body.isNotEmpty) {
       final result = PatternMatcher.match(body);
       if (result != null) {
         // 创建取件码项
@@ -136,8 +136,28 @@ class SmsListenerService {
           await _codeManager!.addCode(codeItem);
           print('已自动添加取件码: ${codeItem.code}');
         } else {
-          print('取件码已存在，跳过: $code');
+          print('取件码已存在，跳过: ${codeItem.code}');
         }
+        return;
+      }
+    }
+    
+    // 如果 body 解析失败，但有 code，直接使用 code
+    if (code != null && code.isNotEmpty) {
+      // 检查是否已存在
+      if (!await _codeManager!.codeExists(code)) {
+        final codeItem = CodeItem(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          code: code,
+          type: CodeType.express,
+          source: sender ?? '未知来源',
+          createTime: DateTime.now(),
+          rawMessage: body,
+        );
+        await _codeManager!.addCode(codeItem);
+        print('已自动添加取件码（简化模式）: $code');
+      } else {
+        print('取件码已存在，跳过: $code');
       }
     }
   }
