@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
 import 'services/notification_service.dart';
+import 'services/reminder_service.dart';
 import 'services/sms_listener_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
@@ -18,6 +19,10 @@ void main() async {
   // 初始化通知服务
   final notificationService = NotificationService();
   await notificationService.init();
+  
+  // 初始化定时提醒服务
+  final reminderService = ReminderService(notificationService: notificationService);
+  await reminderService.init();
   
   // 初始化取件码管理器（带超时保护，防止卡启动页）
   final codeManager = CodeManager(notificationService: notificationService);
@@ -43,6 +48,7 @@ void main() async {
     themeManager: themeManager,
     smsListener: smsListener,
     notificationService: notificationService,
+    reminderService: reminderService,
   ));
 }
 
@@ -51,6 +57,7 @@ class MyApp extends StatelessWidget {
   final ThemeManager themeManager;
   final SmsListenerService smsListener;
   final NotificationService notificationService;
+  final ReminderService reminderService;
 
   const MyApp({
     super.key,
@@ -58,6 +65,7 @@ class MyApp extends StatelessWidget {
     required this.themeManager,
     required this.smsListener,
     required this.notificationService,
+    required this.reminderService,
   });
 
   @override
@@ -68,6 +76,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<ThemeManager>.value(value: themeManager),
         Provider<SmsListenerService>.value(value: smsListener),
         Provider<NotificationService>.value(value: notificationService),
+        ChangeNotifierProvider<ReminderService>.value(value: reminderService),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, child) {

@@ -325,6 +325,50 @@ class NotificationService {
     }
   }
   
+  /// 发送提醒通知（直接发送，不依赖 AlarmManager）
+  Future<void> showReminderNotification({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      print('发送提醒通知: $title');
+      
+      final androidDetails = AndroidNotificationDetails(
+        _reminderChannelId,
+        _reminderChannelName,
+        channelDescription: _reminderChannelDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        visibility: NotificationVisibility.public,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        id: 999997,
+        title: title,
+        body: body,
+        notificationDetails: notificationDetails,
+      );
+      
+      print('提醒通知发送成功');
+    } catch (e) {
+      print('发送提醒通知失败: $e');
+    }
+  }
+  
   /// 发送测试通知（用于调试）
   Future<void> sendTestNotification() async {
     try {
