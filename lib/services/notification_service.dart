@@ -343,6 +343,15 @@ class NotificationService {
         visibility: NotificationVisibility.public,
         playSound: true,
         enableVibration: true,
+        // 强制弹出横幅
+        channelShowBadge: true,
+        // 设置 ticker，触发状态栏提示
+        ticker: '取快递提醒',
+        // 设置分类为提醒，提高优先级
+        category: AndroidNotificationCategory.reminder,
+        // 不设置 ongoing，让它是一个普通通知
+        ongoing: false,
+        autoCancel: true,
       );
 
       const iosDetails = DarwinNotificationDetails(
