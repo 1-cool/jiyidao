@@ -416,7 +416,6 @@ class NotificationService {
         scheduledDate: scheduledDate,
         notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
       
       print('定时提醒已设置，将在 $seconds 秒后触发');
