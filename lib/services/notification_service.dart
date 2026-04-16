@@ -11,10 +11,10 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications = 
       FlutterLocalNotificationsPlugin();
   
-  // 取件码通知渠道
+  // 常驻通知渠道（用于显示取件码等常驻信息）
   static const String _channelId = 'pincode_channel_v2';
-  static const String _channelName = '取件码通知';
-  static const String _channelDescription = '显示取件码、取餐码等信息';
+  static const String _channelName = '常驻通知';
+  static const String _channelDescription = '显示取件码、取餐码等常驻信息';
   
   // 定时提醒通知渠道（独立渠道，方便用户管理）
   static const String _reminderChannelId = 'reminder_channel_v1';
