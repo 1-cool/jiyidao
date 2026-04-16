@@ -11,6 +11,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# 权限配置（用于创建 Release）
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -77,3 +81,23 @@ jobs:
           name: memory-island-release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+      
+      # 10. 创建 Release 并上传 APK（仅在 push 到 main 时）
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: 记忆岛 v${{ steps.version.outputs.version }}
+          body: |
+            ## 记忆岛 v${{ steps.version.outputs.version }}
+            
+            ### 下载
+            - 下载下方 `app-release.apk` 文件安装
+            
+            ### 更新内容
+            - 修复定时提醒功能
+            - 移除测试按钮
+          files: build/app/outputs/flutter-apk/app-release.apk
+          draft: false
+          prerelease: false
