@@ -371,6 +371,17 @@ class NotificationService {
     try {
       print('测试定时提醒: $seconds 秒后触发');
       
+      // Android 12+ 检查精确闹钟权限
+      if (await Permission.scheduleExactAlarm.isDenied) {
+        print('请求精确闹钟权限...');
+        final granted = await Permission.scheduleExactAlarm.request();
+        if (!granted.isGranted) {
+          print('精确闹钟权限未授予，尝试使用非精确模式');
+          // 权限未授予时，使用非精确模式
+          return await _testScheduledReminderInexact(seconds);
+        }
+      }
+      
       // 确保时区已初始化
       tz_data.initializeTimeZones();
       tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
@@ -444,5 +455,61 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
+  }
+  
+  /// 使用非精确模式测试定时提醒（精确闹钟权限未授予时的备用方案）
+  Future<bool> _testScheduledReminderInexact(int seconds) async {
+    try {
+      print('使用非精确模式测试定时提醒');
+      
+      // 确保时区已初始化
+      tz_data.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
+      
+      final now = tz.TZDateTime.now(tz.local);
+      final scheduledDate = now.add(Duration(seconds: seconds));
+      
+      await _notifications.cancel(id: 999998);
+      
+      final androidDetails = AndroidNotificationDetails(
+        _reminderChannelId,
+        _reminderChannelName,
+        channelDescription: _reminderChannelDescription,
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        visibility: NotificationVisibility.public,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      // 使用 inexactAllowWhileIdle 模式（不需要精确闹钟权限）
+      await _notifications.zonedSchedule(
+        id: 999998,
+        title: '📦 定时提醒测试（非精确）',
+        body: '如果你看到这条通知，说明定时提醒功能正常！',
+        scheduledDate: scheduledDate,
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+      
+      print('非精确定时提醒已设置');
+      return true;
+    } catch (e, stackTrace) {
+      print('非精确定时提醒失败: $e');
+      print('堆栈: $stackTrace');
+      return false;
+    }
   }
 }
