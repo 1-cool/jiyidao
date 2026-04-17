@@ -96,8 +96,13 @@ jobs:
             - 下载下方 `app-release.apk` 文件安装
             
             ### 更新内容
-            - 修复定时提醒功能
-            - 移除测试按钮
+            - 🧪 新增 OPPO 灵动岛支持（测试功能）
+            - 支持 OPPO/一加设备的智能岛显示取件码
+            - 优化通知显示效果
+            
+            ### 版本说明
+            - 此版本为**测试版**，包含实验性功能
+            - 稳定版请下载 v1.0.29
           files: build/app/outputs/flutter-apk/app-release.apk
           draft: false
-          prerelease: false
+          prerelease: true

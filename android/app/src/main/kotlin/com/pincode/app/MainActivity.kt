@@ -34,6 +34,9 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
+        // 注册 OPPO 灵动岛插件
+        OppoIslandPlugin.register(flutterEngine, this)
+        
         // 方法通道 - 用于同步设置
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
             .setMethodCallHandler { call, result ->
