@@ -48,7 +48,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         createNotificationChannel()
     }
     
-    override fun onMethodCall(call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "init" -> {
                 // 检查是否支持 OPPO 灵动岛
