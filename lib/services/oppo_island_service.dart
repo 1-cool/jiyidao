@@ -57,8 +57,8 @@ class OppoIslandService {
         final manufacturer = (result['manufacturer'] as String?)?.toLowerCase() ?? '';
         final colorOsVersion = result['colorOsVersion'] as String? ?? '';
         
-        // OPPO 或一加设备
-        if (manufacturer == 'oppo' || manufacturer == 'oneplus') {
+        // OPPO 系设备（OPPO、OnePlus、realme 都使用 ColorOS）
+        if (manufacturer == 'oppo' || manufacturer == 'oneplus' || manufacturer == 'realme') {
           print('检测到 $manufacturer 设备, ColorOS: $colorOsVersion');
           return true;
         }

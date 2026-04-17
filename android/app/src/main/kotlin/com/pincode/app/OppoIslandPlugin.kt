@@ -97,10 +97,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      * 检查是否支持 OPPO 灵动岛
      */
     private fun checkIslandSupport(): Boolean {
-        // 检查是否是 OPPO 设备
+        // 检查是否是 OPPO 系设备（OPPO、OnePlus、realme 都使用 ColorOS）
         val manufacturer = Build.MANUFACTURER.lowercase()
-        val isOppo = manufacturer == "oppo" || manufacturer == "oneplus" || 
-                     Build.VERSION.SDK_INT >= 34 // Android 14+ 支持原生 Live Activities
+        val isOppo = manufacturer == "oppo" || manufacturer == "oneplus" || manufacturer == "realme"
         
         if (!isOppo) {
             return false
