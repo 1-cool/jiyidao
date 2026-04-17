@@ -61,9 +61,9 @@ jobs:
       - name: Analyze Code
         run: flutter analyze || true
       
-      # 7. 构建 APK
+      # 7. 构建 APK（只构建 ARM64，减小体积约 65%）
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --target-platform android-arm64
       
       # 8. 获取版本号
       - name: Get Version
