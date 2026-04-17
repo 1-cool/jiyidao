@@ -97,27 +97,35 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      * 检查是否支持 OPPO 灵动岛
      */
     private fun checkIslandSupport(): Boolean {
-        // 检查是否是 OPPO 系设备（OPPO、OnePlus、realme 都使用 ColorOS）
+        // 检查是否是 OPPO 系设备（OPPO、OnePlus、realme 都使用 ColorOS/OxygenOS）
         val manufacturer = Build.MANUFACTURER.lowercase()
+        android.util.Log.d("OppoIslandPlugin", "设备厂商: $manufacturer")
+        
         val isOppo = manufacturer == "oppo" || manufacturer == "oneplus" || manufacturer == "realme"
         
         if (!isOppo) {
+            android.util.Log.d("OppoIslandPlugin", "不是 OPPO 系设备，不支持灵动岛")
             return false
         }
         
-        // 检查 ColorOS 版本（需要 ColorOS 14+）
-        try {
-            val version = getSystemProperty("ro.build.version.oplus")
-            if (version.isNotEmpty()) {
-                // 解析版本号，ColorOS 14 对应版本号 14.x
-                val majorVersion = version.split(".").firstOrNull()?.toIntOrNull() ?: 0
-                return majorVersion >= 14
-            }
-        } catch (e: Exception) {
-            // 忽略解析错误
+        // 检查 ColorOS/OxygenOS 版本
+        val colorOsVersion = getSystemProperty("ro.build.version.oplus")
+        val oxygenOsVersion = getSystemProperty("ro.build.version.oxygen")
+        
+        android.util.Log.d("OppoIslandPlugin", "ColorOS 版本: $colorOsVersion, OxygenOS 版本: $oxygenOsVersion")
+        
+        // ColorOS 14+ 或 OxygenOS 14+ 支持
+        val version = if (colorOsVersion.isNotEmpty()) colorOsVersion else oxygenOsVersion
+        
+        if (version.isNotEmpty()) {
+            val majorVersion = version.split(".").firstOrNull()?.toIntOrNull() ?: 0
+            val supported = majorVersion >= 14
+            android.util.Log.d("OppoIslandPlugin", "系统版本: $version, 主版本号: $majorVersion, 支持: $supported")
+            return supported
         }
         
         // 如果无法确定版本，假设支持（降级到普通通知）
+        android.util.Log.d("OppoIslandPlugin", "无法确定系统版本，假设支持")
         return true
     }
     
@@ -137,11 +145,15 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      * 获取设备信息
      */
     private fun getDeviceInfo(): Map<String, Any?> {
+        val colorOsVersion = getSystemProperty("ro.build.version.oplus")
+        val oxygenOsVersion = getSystemProperty("ro.build.version.oxygen")
+        
         return mapOf(
             "manufacturer" to Build.MANUFACTURER,
             "model" to Build.MODEL,
             "brand" to Build.BRAND,
-            "colorOsVersion" to getSystemProperty("ro.build.version.oplus"),
+            "colorOsVersion" to colorOsVersion,
+            "oxygenOsVersion" to oxygenOsVersion,
             "androidVersion" to Build.VERSION.SDK_INT
         )
     }
