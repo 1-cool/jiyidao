@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/code_item.dart';
 
@@ -47,24 +47,30 @@ class OppoIslandService {
   
   /// 检查是否是 OPPO 设备
   Future<bool> isOppoDevice() async {
-    if (!Platform.isAndroid) return false;
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
     
     try {
-      // 通过系统属性判断
-      final result = await Process.run('getprop', ['ro.build.version.oplus']);
-      final output = result.stdout.toString().trim();
+      // 通过原生方法检测设备信息（比 Process.run 更可靠）
+      final result = await _channel.invokeMethod<Map<String, dynamic>>('getDeviceInfo');
       
-      // OPPO 设备会有 ColorOS 版本号
-      if (output.isNotEmpty) {
-        print('检测到 ColorOS 版本: $output');
-        return true;
+      if (result != null) {
+        final manufacturer = (result['manufacturer'] as String?)?.toLowerCase() ?? '';
+        final colorOsVersion = result['colorOsVersion'] as String? ?? '';
+        
+        // OPPO 或一加设备
+        if (manufacturer == 'oppo' || manufacturer == 'oneplus') {
+          print('检测到 $manufacturer 设备, ColorOS: $colorOsVersion');
+          return true;
+        }
+        
+        // 有 ColorOS 版本号也认为是 OPPO 设备
+        if (colorOsVersion.isNotEmpty) {
+          print('检测到 ColorOS 版本: $colorOsVersion');
+          return true;
+        }
       }
       
-      // 备用检测：检查厂商
-      final manufacturer = await Process.run('getprop', ['ro.product.manufacturer']);
-      final manufacturerStr = manufacturer.stdout.toString().toLowerCase().trim();
-      
-      return manufacturerStr == 'oppo' || manufacturerStr == 'oneplus';
+      return false;
     } catch (e) {
       print('检测 OPPO 设备失败: $e');
       return false;

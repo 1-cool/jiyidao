@@ -55,6 +55,11 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val isSupported = checkIslandSupport()
                 result.success(isSupported)
             }
+            "getDeviceInfo" -> {
+                // 返回设备信息
+                val info = getDeviceInfo()
+                result.success(info)
+            }
             "showCode" -> {
                 val id = call.argument<String>("id") ?: ""
                 val title = call.argument<String>("title") ?: "取件码"
@@ -127,6 +132,19 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         } catch (e: Exception) {
             ""
         }
+    }
+    
+    /**
+     * 获取设备信息
+     */
+    private fun getDeviceInfo(): Map<String, Any?> {
+        return mapOf(
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "brand" to Build.BRAND,
+            "colorOsVersion" to getSystemProperty("ro.build.version.oplus"),
+            "androidVersion" to Build.VERSION.SDK_INT
+        )
     }
     
     /**

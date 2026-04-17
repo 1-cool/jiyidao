@@ -4,6 +4,7 @@ import '../models/code_item.dart';
 import 'database_service.dart';
 import 'pattern_matcher.dart';
 import 'notification_service.dart';
+import 'oppo_island_service.dart';
 
 /// 取件码管理器
 /// 
@@ -11,6 +12,7 @@ import 'notification_service.dart';
 class CodeManager extends ChangeNotifier {
   final DatabaseService _database = DatabaseService();
   final NotificationService _notification;
+  final OppoIslandService _oppoIsland = OppoIslandService();
   
   /// 取件码列表（用于UI展示）
   List<CodeItem> _codes = [];
@@ -29,6 +31,14 @@ class CodeManager extends ChangeNotifier {
       print('Failed to load codes: $e');
       // 加载失败时使用空列表
       _codes = [];
+    }
+
+    // 初始化 OPPO 灵动岛服务
+    try {
+      final supported = await _oppoIsland.init();
+      print('OPPO 灵动岛支持: $supported');
+    } catch (e) {
+      print('OPPO 灵动岛初始化失败: $e');
     }
 
     // 恢复通知和定时提醒（NotificationService 已在 main.dart 中初始化）
@@ -119,6 +129,14 @@ class CodeManager extends ChangeNotifier {
       // 通知失败不阻塞主流程，但可以提示用户
     }
 
+    // 尝试显示到 OPPO 灵动岛
+    try {
+      await _oppoIsland.showCode(code);
+    } catch (e) {
+      print('OPPO 灵动岛显示失败: $e');
+      // 灵动岛失败不影响主流程
+    }
+
     // 如果是快递类型，更新取快递提醒
     if (code.type == CodeType.express) {
       _updateExpressReminder();
@@ -161,6 +179,13 @@ class CodeManager extends ChangeNotifier {
     
     // 取消通知
     await _notification.cancelNotification(id);
+    
+    // 隐藏 OPPO 灵动岛
+    try {
+      await _oppoIsland.hideCode(id);
+    } catch (e) {
+      print('OPPO 灵动岛隐藏失败: $e');
+    }
 
     // 如果是快递类型，更新取快递提醒
     if (wasExpress) {
@@ -179,6 +204,13 @@ class CodeManager extends ChangeNotifier {
     
     // 取消通知
     await _notification.cancelNotification(id);
+    
+    // 隐藏 OPPO 灵动岛
+    try {
+      await _oppoIsland.hideCode(id);
+    } catch (e) {
+      print('OPPO 灵动岛隐藏失败: $e');
+    }
 
     // 如果是快递类型，更新取快递提醒
     if (wasExpress) {
