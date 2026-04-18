@@ -94,24 +94,19 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     
     /**
      * 检查是否支持灵动岛
-     * 
-     * Android 16+ 设备都支持 ProgressStyle API
-     * OPPO ColorOS 16 额外会将其渲染为流体云样式
      */
     private fun checkIslandSupport(): Boolean {
         val sdkInt = Build.VERSION.SDK_INT
         val manufacturer = Build.MANUFACTURER.lowercase()
         val brand = Build.BRAND.lowercase()
         
-        android.util.Log.d("OppoIslandPlugin", "SDK: $sdkInt, 厂商: $manufacturer, 品牌: $brand")
+        android.util.Log.d("OppoIslandPlugin", "=== 设备信息 ===")
+        android.util.Log.d("OppoIslandPlugin", "SDK 版本: $sdkInt")
+        android.util.Log.d("OppoIslandPlugin", "厂商: $manufacturer")
+        android.util.Log.d("OppoIslandPlugin", "品牌: $brand")
+        android.util.Log.d("OppoIslandPlugin", "型号: ${Build.MODEL}")
         
-        // Android 16+ 才支持 ProgressStyle API
-        if (sdkInt < ANDROID_16) {
-            android.util.Log.d("OppoIslandPlugin", "Android 版本低于 16，不支持 ProgressStyle API")
-            return false
-        }
-        
-        // 检查是否是 OPPO 系设备（会渲染为流体云样式）
+        // 检查是否是 OPPO 系设备
         val isOppoDevice = manufacturer == "oppo" || 
                           manufacturer == "oneplus" || 
                           manufacturer == "realme" ||
@@ -121,12 +116,32 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         
         if (isOppoDevice) {
             val colorOsVersion = getSystemProperty("ro.build.version.oplus")
-            android.util.Log.d("OppoIslandPlugin", "OPPO 系设备, ColorOS 版本: $colorOsVersion")
+            android.util.Log.d("OppoIslandPlugin", "ColorOS 版本: $colorOsVersion")
         }
         
-        // Android 16+ 都支持，只是 OPPO 设备会有更漂亮的流体云样式
-        android.util.Log.d("OppoIslandPlugin", "支持 ProgressStyle API, OPPO 设备: $isOppoDevice")
-        return true
+        // 检查 ProgressStyle API 是否可用
+        val progressStyleAvailable = checkProgressStyleAvailable()
+        android.util.Log.d("OppoIslandPlugin", "ProgressStyle API 可用: $progressStyleAvailable")
+        
+        return progressStyleAvailable
+    }
+    
+    /**
+     * 检查 ProgressStyle API 是否可用
+     */
+    private fun checkProgressStyleAvailable(): Boolean {
+        return try {
+            // 尝试加载 ProgressStyle 类
+            val progressStyleClass = Class.forName("android.app.Notification\$ProgressStyle")
+            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 类加载成功")
+            true
+        } catch (e: ClassNotFoundException) {
+            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 类不存在: ${e.message}")
+            false
+        } catch (e: Exception) {
+            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 检查失败: ${e.message}")
+            false
+        }
     }
     
     /**
@@ -147,6 +162,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     private fun getDeviceInfo(): Map<String, Any?> {
         val colorOsVersion = getSystemProperty("ro.build.version.oplus")
         val oxygenOsVersion = getSystemProperty("ro.build.version.oxygen")
+        val progressStyleAvailable = checkProgressStyleAvailable()
         
         return mapOf(
             "manufacturer" to Build.MANUFACTURER,
@@ -155,7 +171,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             "colorOsVersion" to colorOsVersion,
             "oxygenOsVersion" to oxygenOsVersion,
             "androidVersion" to Build.VERSION.SDK_INT,
-            "supportsProgressStyle" to (Build.VERSION.SDK_INT >= ANDROID_16)
+            "supportsProgressStyle" to progressStyleAvailable
         )
     }
     
@@ -177,13 +193,17 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             }
             
             notificationManager.createNotificationChannel(channel)
+            android.util.Log.d("OppoIslandPlugin", "通知渠道创建成功")
         }
     }
     
     /**
-     * 显示实时活动通知（使用 Android 16 ProgressStyle API）
+     * 显示实时活动通知
      */
     private fun showLiveUpdateNotification(id: String, title: String, code: String, type: String): Boolean {
+        android.util.Log.d("OppoIslandPlugin", "=== 显示通知 ===")
+        android.util.Log.d("OppoIslandPlugin", "ID: $id, 标题: $title, 取件码: $code, 类型: $type")
+        
         return try {
             val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
             
@@ -196,86 +216,107 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
-            val notification = if (Build.VERSION.SDK_INT >= ANDROID_16) {
-                // Android 16+: 使用 ProgressStyle API
-                buildProgressStyleNotification(title, code, type, pendingIntent)
-            } else {
-                // 降级：使用普通高优先级通知
-                buildLegacyNotification(title, code, pendingIntent)
-            }
+            // 尝试使用 ProgressStyle API
+            val notification = tryBuildProgressStyleNotification(title, code, pendingIntent)
+                ?: buildFallbackNotification(title, code, pendingIntent)
             
             notificationManager.notify(notificationId, notification)
-            android.util.Log.d("OppoIslandPlugin", "显示实时活动通知成功: $title - $code")
+            android.util.Log.d("OppoIslandPlugin", "通知显示成功，ID: $notificationId")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "显示实时活动通知失败", e)
+            android.util.Log.e("OppoIslandPlugin", "显示通知失败", e)
             false
         }
     }
     
     /**
-     * 构建 Android 16 ProgressStyle 通知
+     * 尝试构建 ProgressStyle 通知
      * 
-     * ProgressStyle 是 Android 16 新增的 API，用于创建以进度为中心的通知。
-     * OPPO ColorOS 16 会自动将其渲染为流体云样式！
+     * @return 成功返回 Notification，失败返回 null
      */
-    private fun buildProgressStyleNotification(
+    private fun tryBuildProgressStyleNotification(
         title: String, 
-        code: String, 
-        type: String,
+        code: String,
         pendingIntent: PendingIntent
-    ): Notification {
-        val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(code)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setCategory(Notification.CATEGORY_STATUS)
-        
-        // 使用 ProgressStyle
-        // 注意：ProgressStyle 在 Android 16 (API 35) 才可用
-        // 这里使用反射来调用，因为编译时可能还没有 API 35
-        try {
+    ): Notification? {
+        return try {
+            android.util.Log.d("OppoIslandPlugin", "尝试使用 ProgressStyle API...")
+            
+            // 加载 ProgressStyle 类
             val progressStyleClass = Class.forName("android.app.Notification\$ProgressStyle")
-            val progressStyleBuilder = progressStyleClass.getDeclaredConstructor().newInstance()
+            val segmentClass = Class.forName("android.app.Notification\$ProgressStyle\$Segment")
+            val pointClass = Class.forName("android.app.Notification\$ProgressStyle\$Point")
             
-            // 设置进度样式
-            val setStyledByProgress = progressStyleClass.getMethod("setStyledByProgress", Boolean::class.java)
-            setStyledByProgress.invoke(progressStyleBuilder, false)
+            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 类加载成功")
             
-            // 设置进度（这里用 100 表示完成状态）
-            val setProgress = progressStyleClass.getMethod("setProgress", Int::class.java)
-            setProgress.invoke(progressStyleBuilder, 100)
+            // 创建 ProgressStyle 实例
+            val progressStyle = progressStyleClass.getDeclaredConstructor().newInstance()
             
-            // 将 ProgressStyle 应用到通知
+            // setStyledByProgress(false)
+            val setStyledByProgress = progressStyleClass.getMethod("setStyledByProgress", Boolean::class.javaPrimitiveType)
+            setStyledByProgress.invoke(progressStyle, false)
+            
+            // setProgress(100)
+            val setProgress = progressStyleClass.getMethod("setProgress", Int::class.javaPrimitiveType)
+            setProgress.invoke(progressStyle, 100)
+            
+            // 创建一个 Segment（表示进度）
+            val segment = segmentClass.getDeclaredConstructor(Int::class.javaPrimitiveType).newInstance(100)
+            val setColor = segmentClass.getMethod("setColor", Int::class.javaPrimitiveType)
+            setColor.invoke(segment, Color.parseColor("#4CAF50")) // 绿色
+            
+            // setProgressSegments
+            val setProgressSegments = progressStyleClass.getMethod("setProgressSegments", List::class.java)
+            setProgressSegments.invoke(progressStyle, listOf(segment))
+            
+            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 配置成功")
+            
+            // 构建通知
+            val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(code)
+                .setSubText("取件码")  // 副标题
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setCategory(Notification.CATEGORY_STATUS)
+            
+            // 应用 ProgressStyle
             val setStyle = Notification.Builder::class.java.getMethod("setStyle", Notification.Style::class.java)
-            setStyle.invoke(builder, progressStyleBuilder)
+            setStyle.invoke(builder, progressStyle)
             
-            android.util.Log.d("OppoIslandPlugin", "使用 ProgressStyle API 成功")
+            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 通知构建成功")
+            builder.build()
+        } catch (e: ClassNotFoundException) {
+            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 类不存在: ${e.message}")
+            null
+        } catch (e: NoSuchMethodException) {
+            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 方法不存在: ${e.message}")
+            null
         } catch (e: Exception) {
-            // 如果反射失败，使用普通样式
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle API 不可用，使用普通样式: ${e.message}")
-            builder.setStyle(Notification.BigTextStyle().bigText(code))
+            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 构建失败: ${e.javaClass.simpleName} - ${e.message}")
+            e.printStackTrace()
+            null
         }
-        
-        return builder.build()
     }
     
     /**
-     * 构建传统通知（Android 16 以下）
+     * 构建降级通知（普通高优先级通知）
      */
-    private fun buildLegacyNotification(
+    private fun buildFallbackNotification(
         title: String, 
         code: String,
         pendingIntent: PendingIntent
     ): Notification {
+        android.util.Log.d("OppoIslandPlugin", "使用降级通知样式")
+        
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(code)
+            .setSubText("取件码")
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -293,10 +334,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         return try {
             val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
             notificationManager.cancel(notificationId)
-            android.util.Log.d("OppoIslandPlugin", "隐藏实时活动通知成功")
+            android.util.Log.d("OppoIslandPlugin", "隐藏通知成功，ID: $notificationId")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "隐藏实时活动通知失败", e)
+            android.util.Log.e("OppoIslandPlugin", "隐藏通知失败", e)
             false
         }
     }
@@ -310,10 +351,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
                 createNotificationChannel()
             }
-            android.util.Log.d("OppoIslandPlugin", "隐藏所有实时活动通知成功")
+            android.util.Log.d("OppoIslandPlugin", "隐藏所有通知成功")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "隐藏所有实时活动通知失败", e)
+            android.util.Log.e("OppoIslandPlugin", "隐藏所有通知失败", e)
             false
         }
     }
