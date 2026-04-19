@@ -67,11 +67,7 @@ class OppoIslandService {
     
     print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
     
-    if (!_isSupported) {
-      print('OPPO 灵动岛不支持，跳过显示');
-      return false;
-    }
-
+    // 无论是否支持，都调用原生方法（用于日志记录）
     try {
       print('调用原生 showCode...');
       final result = await _channel.invokeMethod<bool>('showCode', {
@@ -80,8 +76,7 @@ class OppoIslandService {
         'code': code.code,
         'type': code.type.name,
       });
-
-      print('OPPO 灵动岛显示取件码: ${code.id}, 结果: $result');
+      print('原生 showCode 返回: $result');
       return result ?? false;
     } catch (e) {
       print('OPPO 灵动岛显示取件码失败: $e');
