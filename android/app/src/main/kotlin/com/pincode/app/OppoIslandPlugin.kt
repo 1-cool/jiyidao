@@ -37,9 +37,44 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         // Android 16 (API 35)
         private const val ANDROID_16 = 35
         
+        // 日志缓存（最多保留 200 条）
+        private val logBuffer = mutableListOf<String>()
+        private const val MAX_LOG_SIZE = 200
+        
         fun register(flutterEngine: FlutterEngine, context: Context) {
             val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
             channel.setMethodCallHandler(OppoIslandPlugin(context))
+        }
+        
+        // 添加日志到缓存
+        private fun addLog(message: String) {
+            val timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                .format(java.util.Date())
+            val logEntry = "[$timestamp] $message"
+            
+            synchronized(logBuffer) {
+                if (logBuffer.size >= MAX_LOG_SIZE) {
+                    logBuffer.removeAt(0)
+                }
+                logBuffer.add(logEntry)
+            }
+            
+            // 同时输出到 logcat
+            android.util.Log.d("OppoIslandPlugin", message)
+        }
+        
+        // 获取所有日志
+        private fun getLogs(): List<String> {
+            synchronized(logBuffer) {
+                return logBuffer.toList()
+            }
+        }
+        
+        // 清空日志
+        private fun clearLogs() {
+            synchronized(logBuffer) {
+                logBuffer.clear()
+            }
         }
     }
     
@@ -86,6 +121,14 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val success = hideAllLiveUpdates()
                 result.success(success)
             }
+            "getLogs" -> {
+                val logs = getLogs()
+                result.success(logs)
+            }
+            "clearLogs" -> {
+                clearLogs()
+                result.success(true)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -100,11 +143,11 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         val manufacturer = Build.MANUFACTURER.lowercase()
         val brand = Build.BRAND.lowercase()
         
-        android.util.Log.d("OppoIslandPlugin", "=== 设备信息 ===")
-        android.util.Log.d("OppoIslandPlugin", "SDK 版本: $sdkInt")
-        android.util.Log.d("OppoIslandPlugin", "厂商: $manufacturer")
-        android.util.Log.d("OppoIslandPlugin", "品牌: $brand")
-        android.util.Log.d("OppoIslandPlugin", "型号: ${Build.MODEL}")
+        addLog("=== 设备信息 ===")
+        addLog("SDK 版本: $sdkInt")
+        addLog("厂商: $manufacturer")
+        addLog("品牌: $brand")
+        addLog("型号: ${Build.MODEL}")
         
         // 检查是否是 OPPO 系设备
         val isOppoDevice = manufacturer == "oppo" || 
@@ -116,12 +159,12 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         
         if (isOppoDevice) {
             val colorOsVersion = getSystemProperty("ro.build.version.oplus")
-            android.util.Log.d("OppoIslandPlugin", "ColorOS 版本: $colorOsVersion")
+            addLog("ColorOS 版本: $colorOsVersion")
         }
         
         // 检查 ProgressStyle API 是否可用
         val progressStyleAvailable = checkProgressStyleAvailable()
-        android.util.Log.d("OppoIslandPlugin", "ProgressStyle API 可用: $progressStyleAvailable")
+        addLog("ProgressStyle API 可用: $progressStyleAvailable")
         
         return progressStyleAvailable
     }
@@ -133,13 +176,13 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         return try {
             // 尝试加载 ProgressStyle 类
             val progressStyleClass = Class.forName("android.app.Notification\$ProgressStyle")
-            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 类加载成功")
+            addLog("✅ ProgressStyle 类加载成功")
             true
         } catch (e: ClassNotFoundException) {
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 类不存在: ${e.message}")
+            addLog("❌ ProgressStyle 类不存在: ${e.message}")
             false
         } catch (e: Exception) {
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 检查失败: ${e.message}")
+            addLog("❌ ProgressStyle 检查失败: ${e.message}")
             false
         }
     }
@@ -193,7 +236,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             }
             
             notificationManager.createNotificationChannel(channel)
-            android.util.Log.d("OppoIslandPlugin", "通知渠道创建成功")
+            addLog("✅ 通知渠道创建成功")
         }
     }
     
@@ -201,8 +244,8 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      * 显示实时活动通知
      */
     private fun showLiveUpdateNotification(id: String, title: String, code: String, type: String): Boolean {
-        android.util.Log.d("OppoIslandPlugin", "=== 显示通知 ===")
-        android.util.Log.d("OppoIslandPlugin", "ID: $id, 标题: $title, 取件码: $code, 类型: $type")
+        addLog("=== 显示通知 ===")
+        addLog("ID: $id, 标题: $title, 取件码: $code, 类型: $type")
         
         return try {
             val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
@@ -221,10 +264,11 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 ?: buildFallbackNotification(title, code, pendingIntent)
             
             notificationManager.notify(notificationId, notification)
-            android.util.Log.d("OppoIslandPlugin", "通知显示成功，ID: $notificationId")
+            addLog("✅ 通知显示成功，ID: $notificationId")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "显示通知失败", e)
+            addLog("❌ 显示通知失败: ${e.message}")
+            e.printStackTrace()
             false
         }
     }
@@ -240,14 +284,14 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         pendingIntent: PendingIntent
     ): Notification? {
         return try {
-            android.util.Log.d("OppoIslandPlugin", "尝试使用 ProgressStyle API...")
+            addLog("尝试使用 ProgressStyle API...")
             
             // 加载 ProgressStyle 类
             val progressStyleClass = Class.forName("android.app.Notification\$ProgressStyle")
             val segmentClass = Class.forName("android.app.Notification\$ProgressStyle\$Segment")
             val pointClass = Class.forName("android.app.Notification\$ProgressStyle\$Point")
             
-            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 类加载成功")
+            addLog("✅ ProgressStyle 类加载成功")
             
             // 创建 ProgressStyle 实例
             val progressStyle = progressStyleClass.getDeclaredConstructor().newInstance()
@@ -269,7 +313,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             val setProgressSegments = progressStyleClass.getMethod("setProgressSegments", List::class.java)
             setProgressSegments.invoke(progressStyle, listOf(segment))
             
-            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 配置成功")
+            addLog("✅ ProgressStyle 配置成功")
             
             // 构建通知
             val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
@@ -287,16 +331,16 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             val setStyle = Notification.Builder::class.java.getMethod("setStyle", Notification.Style::class.java)
             setStyle.invoke(builder, progressStyle)
             
-            android.util.Log.d("OppoIslandPlugin", "ProgressStyle 通知构建成功")
+            addLog("✅ ProgressStyle 通知构建成功")
             builder.build()
         } catch (e: ClassNotFoundException) {
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 类不存在: ${e.message}")
+            addLog("❌ ProgressStyle 类不存在: ${e.message}")
             null
         } catch (e: NoSuchMethodException) {
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 方法不存在: ${e.message}")
+            addLog("❌ ProgressStyle 方法不存在: ${e.message}")
             null
         } catch (e: Exception) {
-            android.util.Log.w("OppoIslandPlugin", "ProgressStyle 构建失败: ${e.javaClass.simpleName} - ${e.message}")
+            addLog("❌ ProgressStyle 构建失败: ${e.javaClass.simpleName} - ${e.message}")
             e.printStackTrace()
             null
         }
@@ -310,7 +354,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         code: String,
         pendingIntent: PendingIntent
     ): Notification {
-        android.util.Log.d("OppoIslandPlugin", "使用降级通知样式")
+        addLog("⚠️ 使用降级通知样式（ProgressStyle 不可用）")
         
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -334,10 +378,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         return try {
             val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
             notificationManager.cancel(notificationId)
-            android.util.Log.d("OppoIslandPlugin", "隐藏通知成功，ID: $notificationId")
+            addLog("✅ 隐藏通知成功，ID: $notificationId")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "隐藏通知失败", e)
+            addLog("❌ 隐藏通知失败: ${e.message}")
             false
         }
     }
@@ -351,10 +395,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
                 createNotificationChannel()
             }
-            android.util.Log.d("OppoIslandPlugin", "隐藏所有通知成功")
+            addLog("✅ 隐藏所有通知成功")
             true
         } catch (e: Exception) {
-            android.util.Log.e("OppoIslandPlugin", "隐藏所有通知失败", e)
+            addLog("❌ 隐藏所有通知失败: ${e.message}")
             false
         }
     }
