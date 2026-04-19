@@ -28,8 +28,8 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     
     companion object {
         private const val CHANNEL_NAME = "com.pincode.app/oppo_island"
-        private const val NOTIFICATION_CHANNEL_ID = "live_update_channel"
-        private const val NOTIFICATION_CHANNEL_NAME = "取件码灵动岛"
+        // 使用 Flutter 端的通知渠道，不再创建独立渠道
+        private const val NOTIFICATION_CHANNEL_ID = "pincode_channel_v2"
         
         // 灵动岛通知的基础 ID
         private const val BASE_NOTIFICATION_ID = 10000
@@ -80,9 +80,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     
-    init {
-        createNotificationChannel()
-    }
+    // 不再创建独立的通知渠道，使用 Flutter 端的渠道
+    // init {
+    //     createNotificationChannel()
+    // }
     
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -217,28 +218,6 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             "androidVersion" to Build.VERSION.SDK_INT,
             "supportsProgressStyle" to progressStyleAvailable
         )
-    }
-    
-    /**
-     * 创建通知渠道
-     */
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "显示取件码的实时活动通知"
-                enableLights(true)
-                enableVibration(false)
-                setShowBadge(true)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            }
-            
-            notificationManager.createNotificationChannel(channel)
-            addLog("✅ 通知渠道创建成功")
-        }
     }
     
     /**
@@ -392,9 +371,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      */
     private fun hideAllLiveUpdates(): Boolean {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
-                createNotificationChannel()
+            // 取消所有灵动岛通知（ID 范围 10000-20000）
+            for (i in 10000..20000) {
+                notificationManager.cancel(i)
             }
             addLog("✅ 隐藏所有通知成功")
             true
