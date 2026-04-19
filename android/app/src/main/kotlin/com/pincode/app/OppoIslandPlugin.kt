@@ -95,6 +95,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 result.success(info)
             }
             "showCode" -> {
+                addLog("=== showCode 被调用 ===")
                 val id = call.argument<String>("id") ?: ""
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""

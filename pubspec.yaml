@@ -1,7 +1,7 @@
 name: memory_island
 description: 记忆岛 - 把取件码钉在灵动岛上，像记忆一样常驻
 publish_to: 'none'
-version: 1.0.36-beta+37
+version: 1.0.37-beta+38
 
 environment:
   sdk: '>=3.5.0 <4.0.0'

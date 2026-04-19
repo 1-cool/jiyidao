@@ -57,13 +57,23 @@ class OppoIslandService {
 
   /// 显示取件码到灵动岛
   Future<bool> showCode(CodeItem code) async {
-    if (!_isInitialized) await init();
+    print('=== showCode 被调用 ===');
+    print('取件码: ${code.id}, ${code.code}');
+    
+    if (!_isInitialized) {
+      print('服务未初始化，开始初始化...');
+      await init();
+    }
+    
+    print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
+    
     if (!_isSupported) {
       print('OPPO 灵动岛不支持，跳过显示');
       return false;
     }
 
     try {
+      print('调用原生 showCode...');
       final result = await _channel.invokeMethod<bool>('showCode', {
         'id': code.id,
         'title': '${code.type.emoji} ${code.location}',
