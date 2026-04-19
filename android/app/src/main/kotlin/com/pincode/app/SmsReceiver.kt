@@ -73,13 +73,9 @@ class SmsReceiver : BroadcastReceiver() {
      * 显示通知
      */
     private fun showNotification(context: Context, code: String, body: String) {
-        // 启动前台服务来显示通知
-        val intent = Intent(context, PinCodeService::class.java).apply {
-            action = "SHOW_CODE"
-            putExtra("code", code)
-            putExtra("body", body)
-        }
-        context.startService(intent)
+        // 不再启动前台服务，直接通过 Flutter 端处理
+        // Flutter 端的 NotificationService 会显示通知
+        Log.d(TAG, "取件码已识别，等待 Flutter 端处理: $code")
     }
     
     /**
