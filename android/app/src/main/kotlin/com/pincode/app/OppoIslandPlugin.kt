@@ -334,11 +334,15 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .setProgressPoints(progressPoints)
         
         // 构建通知
+        // 显示结构：
+        // - 副标题(subText): 地点名称（如"水岸明珠世纪华联"）
+        // - 标题(contentTitle): 取件码（如"0706-0331"）
+        // - 内容(contentText): 空或简短描述
         return Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(getTypeIcon(emoji))
-            .setContentTitle(code)  // 标题显示取件码
-            .setContentText(if (location.isNotEmpty()) location else locationName)  // 内容显示地点
-            .setSubText(locationName.ifEmpty { null })  // 副标题显示地点名称
+            .setContentTitle(code)  // 标题：取件码
+            .setContentText("")  // 内容：空（避免重复显示）
+            .setSubText(locationName.ifEmpty { location })  // 副标题：地点名称
             .setContentIntent(pendingIntent)
             .setOngoing(true)  // 常驻通知
             .setAutoCancel(false)
@@ -403,9 +407,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(getTypeIcon(emoji))
-            .setContentTitle(code)
-            .setContentText(if (location.isNotEmpty()) location else locationName)
-            .setSubText(locationName.ifEmpty { null })
+            .setContentTitle(code)  // 标题：取件码
+            .setContentText("")  // 内容：空（避免重复显示）
+            .setSubText(locationName.ifEmpty { location })  // 副标题：地点名称
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
