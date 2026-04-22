@@ -33,7 +33,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.pincode.app"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35  // Android 16 (BAKLAVA) - 支持 ProgressStyle API
     ndkVersion flutter.ndkVersion
 
     compileOptions {
