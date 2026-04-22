@@ -119,8 +119,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
+                val location = call.argument<String>("location") ?: ""  // 地点信息
                 
-                val success = showLiveUpdateNotification(id, title, code, type)
+                val success = showLiveUpdateNotification(id, title, code, type, location)
                 result.success(success)
             }
             "updateCode" -> {
@@ -128,8 +129,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
+                val location = call.argument<String>("location") ?: ""  // 地点信息
                 
-                val success = showLiveUpdateNotification(id, title, code, type)
+                val success = showLiveUpdateNotification(id, title, code, type, location)
                 result.success(success)
             }
             "hideCode" -> {
@@ -240,9 +242,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     /**
      * 显示实时活动通知
      */
-    private fun showLiveUpdateNotification(id: String, title: String, code: String, type: String): Boolean {
+    private fun showLiveUpdateNotification(id: String, title: String, code: String, type: String, location: String = ""): Boolean {
         addLog("=== 显示通知 ===")
-        addLog("ID: $id, 标题: $title, 取件码: $code, 类型: $type")
+        addLog("ID: $id, 标题: $title, 取件码: $code, 类型: $type, 地点: $location")
         
         return try {
             val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
@@ -262,10 +264,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             // 构建通知
             val notification = if (Build.VERSION.SDK_INT >= 35) {
                 // Android 16+: 使用 ProgressStyle API
-                buildProgressStyleNotification(title, code, accentColor, pendingIntent)
+                buildProgressStyleNotification(title, code, location, accentColor, pendingIntent)
             } else {
                 // Android 16 以下: 使用普通高优先级通知
-                buildFallbackNotification(title, code, accentColor, pendingIntent)
+                buildFallbackNotification(title, code, location, accentColor, pendingIntent)
             }
             
             notificationManager.notify(notificationId, notification)
@@ -301,6 +303,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     private fun buildProgressStyleNotification(
         title: String,
         code: String,
+        location: String,
         accentColor: Int,
         pendingIntent: PendingIntent
     ): Notification {
@@ -319,12 +322,19 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 )
             )
         
+        // 解析标题：提取 emoji 和地点名称
+        // 标题格式通常是 "📦 水岸明珠世纪华联"
+        val (emoji, locationName) = parseTitle(title)
+        
         // 构建通知
+        // - subText: 显示地点（如果有）
+        // - contentTitle: 显示取件码
+        // - contentText: 显示来源/备注
         return Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(code)
-            .setSubText("取件码")  // 副标题，显示在标题上方
+            .setSmallIcon(getTypeIcon(emoji))  // 根据类型设置图标
+            .setContentTitle(code)  // 标题显示取件码
+            .setContentText(if (location.isNotEmpty()) location else locationName)  // 内容显示地点
+            .setSubText(locationName.ifEmpty { null })  // 副标题显示地点名称
             .setContentIntent(pendingIntent)
             .setOngoing(true)  // 常驻通知
             .setAutoCancel(false)
@@ -336,21 +346,55 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     }
     
     /**
+     * 解析标题，提取 emoji 和地点名称
+     * 
+     * @param title 标题，格式通常是 "📦 水岸明珠世纪华联"
+     * @return Pair(emoji, locationName)
+     */
+    private fun parseTitle(title: String): Pair<String, String> {
+        // 查找第一个空格的位置
+        val spaceIndex = title.indexOf(' ')
+        return if (spaceIndex > 0) {
+            val emoji = title.substring(0, spaceIndex).trim()
+            val locationName = title.substring(spaceIndex + 1).trim()
+            Pair(emoji, locationName)
+        } else {
+            Pair("", title)
+        }
+    }
+    
+    /**
+     * 根据类型 emoji 获取对应的图标资源 ID
+     */
+    private fun getTypeIcon(emoji: String): Int {
+        return when (emoji) {
+            "📦" -> android.R.drawable.ic_menu_upload  // 快递 - 上传图标（盒子形状）
+            "🍔" -> android.R.drawable.ic_menu_delete  // 外卖 - 删除图标（餐盘形状）
+            "🚗" -> android.R.drawable.ic_menu_send    // 出行 - 发送图标（车辆形状）
+            else -> android.R.drawable.ic_menu_info_details  // 默认 - 信息图标
+        }
+    }
+    
+    /**
      * 构建降级通知（Android 16 以下）
      */
     private fun buildFallbackNotification(
         title: String,
         code: String,
+        location: String,
         accentColor: Int,
         pendingIntent: PendingIntent
     ): Notification {
         addLog("⚠️ 使用降级通知样式（Android 16 以下）")
         
+        // 解析标题：提取 emoji 和地点名称
+        val (emoji, locationName) = parseTitle(title)
+        
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(code)
-            .setSubText("取件码")
+            .setSmallIcon(getTypeIcon(emoji))
+            .setContentTitle(code)  // 标题显示取件码
+            .setContentText(if (location.isNotEmpty()) location else locationName)  // 内容显示地点
+            .setSubText(locationName.ifEmpty { null })  // 副标题显示地点名称
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)

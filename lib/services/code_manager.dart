@@ -50,9 +50,16 @@ class CodeManager extends ChangeNotifier {
   Future<void> _restoreNotifications() async {
     for (final code in _codes) {
       try {
-        await _notification.showCodeNotification(code);
+        // 只使用 OPPO 灵动岛恢复通知
+        await _oppoIsland.showCode(code);
       } catch (e) {
-        print('恢复通知失败: ${code.code}, $e');
+        print('恢复灵动岛通知失败: ${code.code}, $e');
+        // 降级使用 Flutter 端通知
+        try {
+          await _notification.showCodeNotification(code);
+        } catch (e2) {
+          print('恢复 Flutter 端通知也失败: ${code.code}, $e2');
+        }
       }
     }
     print('已恢复 ${_codes.length} 个取件码的通知');
@@ -121,20 +128,18 @@ class CodeManager extends ChangeNotifier {
     _codes.insert(0, code);
     notifyListeners();
 
-    // 发送通知
-    try {
-      await _notification.showCodeNotification(code);
-    } catch (e) {
-      print('发送通知失败: $e');
-      // 通知失败不阻塞主流程，但可以提示用户
-    }
-
-    // 尝试显示到 OPPO 灵动岛
+    // 只使用 OPPO 灵动岛显示通知（不再使用 Flutter 端的通知）
+    // OPPO 灵动岛会使用 ProgressStyle API 显示常驻通知
     try {
       await _oppoIsland.showCode(code);
     } catch (e) {
       print('OPPO 灵动岛显示失败: $e');
-      // 灵动岛失败不影响主流程
+      // 如果灵动岛失败，降级使用 Flutter 端通知
+      try {
+        await _notification.showCodeNotification(code);
+      } catch (e2) {
+        print('Flutter 端通知也失败: $e2');
+      }
     }
 
     // 如果是快递类型，更新取快递提醒

@@ -57,37 +57,38 @@ class OppoIslandService {
 
   /// 显示取件码到灵动岛
   Future<bool> showCode(CodeItem code) async {
-    print('=== showCode 被调用 ===');
-    print('取件码: ${code.id}, ${code.code}');
+    print('=== showCode 被调用 ===')
+    print('取件码: ${code.id}, ${code.code}, 地点: ${code.location}')
     
     if (!_isInitialized) {
-      print('服务未初始化，开始初始化...');
-      await init();
+      print('服务未初始化，开始初始化...')
+      await init()
     }
     
-    print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
+    print('初始化状态: $_isInitialized, 支持状态: $_isSupported')
     
     // 无论是否支持，都调用原生方法（用于日志记录）
     try {
-      print('调用原生 showCode...');
+      print('调用原生 showCode...')
       final result = await _channel.invokeMethod<bool>('showCode', {
         'id': code.id,
         'title': '${code.type.emoji} ${code.location}',
         'code': code.code,
         'type': code.type.name,
-      });
-      print('原生 showCode 返回: $result');
-      return result ?? false;
+        'location': code.location ?? '',  // 传递地点信息
+      })
+      print('原生 showCode 返回: $result')
+      return result ?? false
     } catch (e) {
-      print('OPPO 灵动岛显示取件码失败: $e');
-      return false;
+      print('OPPO 灵动岛显示取件码失败: $e')
+      return false
     }
   }
 
   /// 更新灵动岛内容
   Future<bool> updateCode(CodeItem code) async {
-    if (!_isInitialized) await init();
-    if (!_isSupported) return false;
+    if (!_isInitialized) await init()
+    if (!_isSupported) return false
 
     try {
       final result = await _channel.invokeMethod<bool>('updateCode', {
@@ -95,12 +96,13 @@ class OppoIslandService {
         'title': '${code.type.emoji} ${code.location}',
         'code': code.code,
         'type': code.type.name,
-      });
+        'location': code.location ?? '',  // 传递地点信息
+      })
 
-      return result ?? false;
+      return result ?? false
     } catch (e) {
-      print('OPPO 灵动岛更新失败: $e');
-      return false;
+      print('OPPO 灵动岛更新失败: $e')
+      return false
     }
   }
 
