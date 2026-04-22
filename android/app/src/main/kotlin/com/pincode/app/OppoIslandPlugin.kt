@@ -15,7 +15,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodCall
 
 /**
- * 灵动岛插件 - 基于 Android 16 ProgressStyle API
+ * 灵动岛插件 - 基于 Android 16 Live Updates API
  * 
  * Android 16 引入了 Notification.ProgressStyle API，用于创建以进度为中心的通知。
  * OPPO ColorOS 16 完整兼容 Android 16 的 Live Updates API，
@@ -119,7 +119,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
-                val location = call.argument<String>("location") ?: ""  // 地点信息
+                val location = call.argument<String>("location") ?: ""
                 
                 val success = showLiveUpdateNotification(id, title, code, type, location)
                 result.success(success)
@@ -129,7 +129,7 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
-                val location = call.argument<String>("location") ?: ""  // 地点信息
+                val location = call.argument<String>("location") ?: ""
                 
                 val success = showLiveUpdateNotification(id, title, code, type, location)
                 result.success(success)
@@ -295,11 +295,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     /**
      * 构建 ProgressStyle 通知（Android 16+）
      * 
-     * 使用官方 API，无需反射
-     * 
-     * 注意：ProgressStyle 在 Android 16 (API 35) 引入，
-     * 但部分设备可能需要更高版本才能完全支持
+     * 使用 Android 16 官方 Live Updates API
+     * 参考：https://developer.android.com/about/versions/16/features/progress-centric-notifications
      */
+    @Suppress("NewApi")
     private fun buildProgressStyleNotification(
         title: String,
         code: String,
@@ -309,29 +308,34 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     ): Notification {
         addLog("✅ 使用 ProgressStyle API 构建")
         
-        // 创建 ProgressStyle
-        // 使用 @Suppress 消除新 API 警告
-        @Suppress("NewApi")
-        val progressStyle = Notification.ProgressStyle()
-            .setStyledByProgress(false)  // 不自动根据进度设置样式
-            .setProgress(100)  // 总进度
-            .setProgressSegments(
-                listOf(
-                    // 单个 Segment 表示完整进度，使用类型颜色
-                    Notification.ProgressStyle.Segment(100).setColor(accentColor)
-                )
-            )
-        
         // 解析标题：提取 emoji 和地点名称
-        // 标题格式通常是 "📦 水岸明珠世纪华联"
         val (emoji, locationName) = parseTitle(title)
         
+        // 创建进度追踪器图标
+        val trackerIcon = Icon.createWithResource(context, getTrackerIconResource(emoji))
+        
+        // 创建 ProgressStyle - 模拟"待取件"旅程
+        // 进度点：表示里程碑
+        val progressPoints = listOf(
+            Notification.ProgressStyle.Point(0).setColor(Color.parseColor("#4CAF50")),   // 已到达（绿色）
+            Notification.ProgressStyle.Point(100).setColor(Color.parseColor("#9E9E9E"))  // 待取件（灰色）
+        )
+        
+        // 进度段：表示状态
+        val progressSegments = listOf(
+            Notification.ProgressStyle.Segment(100).setColor(accentColor)  // 整体进度，使用类型颜色
+        )
+        
+        val progressStyle = Notification.ProgressStyle()
+            .setStyledByProgress(false)  // 不自动根据进度设置样式
+            .setProgress(100)  // 当前进度（100 表示已到达，等待取件）
+            .setProgressTrackerIcon(trackerIcon)  // 设置追踪器图标
+            .setProgressSegments(progressSegments)
+            .setProgressPoints(progressPoints)
+        
         // 构建通知
-        // - subText: 显示地点（如果有）
-        // - contentTitle: 显示取件码
-        // - contentText: 显示来源/备注
         return Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(getTypeIcon(emoji))  // 根据类型设置图标
+            .setSmallIcon(getTypeIcon(emoji))
             .setContentTitle(code)  // 标题显示取件码
             .setContentText(if (location.isNotEmpty()) location else locationName)  // 内容显示地点
             .setSubText(locationName.ifEmpty { null })  // 副标题显示地点名称
@@ -346,13 +350,21 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     }
     
     /**
+     * 获取进度追踪器图标资源 ID
+     */
+    private fun getTrackerIconResource(emoji: String): Int {
+        return when (emoji) {
+            "📦" -> android.R.drawable.ic_menu_upload  // 快递
+            "🍔" -> android.R.drawable.ic_menu_delete  // 外卖
+            "🚗" -> android.R.drawable.ic_menu_send    // 出行
+            else -> android.R.drawable.ic_menu_info_details
+        }
+    }
+    
+    /**
      * 解析标题，提取 emoji 和地点名称
-     * 
-     * @param title 标题，格式通常是 "📦 水岸明珠世纪华联"
-     * @return Pair(emoji, locationName)
      */
     private fun parseTitle(title: String): Pair<String, String> {
-        // 查找第一个空格的位置
         val spaceIndex = title.indexOf(' ')
         return if (spaceIndex > 0) {
             val emoji = title.substring(0, spaceIndex).trim()
@@ -368,10 +380,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      */
     private fun getTypeIcon(emoji: String): Int {
         return when (emoji) {
-            "📦" -> android.R.drawable.ic_menu_upload  // 快递 - 上传图标（盒子形状）
-            "🍔" -> android.R.drawable.ic_menu_delete  // 外卖 - 删除图标（餐盘形状）
-            "🚗" -> android.R.drawable.ic_menu_send    // 出行 - 发送图标（车辆形状）
-            else -> android.R.drawable.ic_menu_info_details  // 默认 - 信息图标
+            "📦" -> android.R.drawable.ic_menu_upload
+            "🍔" -> android.R.drawable.ic_menu_delete
+            "🚗" -> android.R.drawable.ic_menu_send
+            else -> android.R.drawable.ic_menu_info_details
         }
     }
     
@@ -387,14 +399,13 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     ): Notification {
         addLog("⚠️ 使用降级通知样式（Android 16 以下）")
         
-        // 解析标题：提取 emoji 和地点名称
         val (emoji, locationName) = parseTitle(title)
         
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(getTypeIcon(emoji))
-            .setContentTitle(code)  // 标题显示取件码
-            .setContentText(if (location.isNotEmpty()) location else locationName)  // 内容显示地点
-            .setSubText(locationName.ifEmpty { null })  // 副标题显示地点名称
+            .setContentTitle(code)
+            .setContentText(if (location.isNotEmpty()) location else locationName)
+            .setSubText(locationName.ifEmpty { null })
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -426,7 +437,6 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      */
     private fun hideAllLiveUpdates(): Boolean {
         return try {
-            // 取消所有灵动岛通知（ID 范围 10000-20000）
             for (i in 10000..20000) {
                 notificationManager.cancel(i)
             }
