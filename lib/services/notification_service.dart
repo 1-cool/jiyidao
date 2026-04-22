@@ -143,8 +143,8 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    // 使用时间戳作为通知ID，确保每个码都有独立通知
-    final notificationId = code.id.hashCode;
+    // 使用稳定的正数 ID（避免 hashCode 可能为负数或冲突）
+    final notificationId = _getStableNotificationId(code.id);
 
     // flutter_local_notifications 21.x: 所有参数改为命名参数
     await _notifications.show(
@@ -163,9 +163,25 @@ class NotificationService {
 
   /// 取消通知
   Future<void> cancelNotification(String codeId) async {
-    final notificationId = codeId.hashCode;
+    final notificationId = _getStableNotificationId(codeId);
     // flutter_local_notifications 21.x: cancel 也需要命名参数
     await _notifications.cancel(id: notificationId);
+  }
+  
+  /// 生成稳定的通知 ID
+  /// 
+  /// 使用字符串的字符值求和，确保：
+  /// 1. 始终为正数
+  /// 2. 相同字符串生成相同 ID
+  /// 3. 不同字符串大概率生成不同 ID
+  int _getStableNotificationId(String id) {
+    // 使用字符值求和 + 长度，避免简单的 hashCode 冲突
+    int sum = 0;
+    for (int i = 0; i < id.length; i++) {
+      sum = sum * 31 + id.codeUnitAt(i);
+    }
+    // 确保为正数，并限制在合理范围内
+    return (sum & 0x7FFFFFFF) % 1000000 + 1;
   }
 
   /// 取消所有通知

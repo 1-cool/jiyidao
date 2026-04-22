@@ -170,11 +170,17 @@ class CodeManager extends ChangeNotifier {
 
   /// 标记为已使用
   Future<void> markAsUsed(String id) async {
-    final code = _codes.firstWhere((c) => c.id == id);
+    // 安全查找，避免 firstWhere 抛出异常
+    final index = _codes.indexWhere((c) => c.id == id);
+    if (index == -1) {
+      print('取件码不存在: $id');
+      return;
+    }
+    final code = _codes[index];
     final wasExpress = code.type == CodeType.express;
     
     await _database.markAsUsed(id);
-    _codes.removeWhere((code) => code.id == id);
+    _codes.removeAt(index);
     notifyListeners();
     
     // 取消通知
@@ -195,11 +201,17 @@ class CodeManager extends ChangeNotifier {
 
   /// 删除取件码
   Future<void> deleteCode(String id) async {
-    final code = _codes.firstWhere((c) => c.id == id);
+    // 安全查找，避免 firstWhere 抛出异常
+    final index = _codes.indexWhere((c) => c.id == id);
+    if (index == -1) {
+      print('取件码不存在: $id');
+      return;
+    }
+    final code = _codes[index];
     final wasExpress = code.type == CodeType.express;
     
     await _database.deleteCode(id);
-    _codes.removeWhere((code) => code.id == id);
+    _codes.removeAt(index);
     notifyListeners();
     
     // 取消通知

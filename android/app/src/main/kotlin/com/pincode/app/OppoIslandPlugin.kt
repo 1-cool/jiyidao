@@ -80,10 +80,39 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     
-    // 不再创建独立的通知渠道，使用 Flutter 端的渠道
-    // init {
-    //     createNotificationChannel()
-    // }
+    init {
+        // 确保通知渠道存在（Flutter 端可能还没初始化完成）
+        createNotificationChannel()
+    }
+    
+    /**
+     * 创建通知渠道（Android 8.0+）
+     * 
+     * 注意：即使 Flutter 端也会创建，这里也要创建以确保原生端能正常显示通知
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // 检查渠道是否已存在
+            val existingChannel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            if (existingChannel != null) {
+                addLog("通知渠道已存在: $NOTIFICATION_CHANNEL_ID")
+                return
+            }
+            
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "常驻通知",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "显示取件码、取餐码等常驻信息"
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            
+            notificationManager.createNotificationChannel(channel)
+            addLog("✅ 通知渠道创建成功: $NOTIFICATION_CHANNEL_ID")
+        }
+    }
     
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
