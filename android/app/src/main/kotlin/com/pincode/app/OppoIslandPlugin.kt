@@ -294,6 +294,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
      * 构建 ProgressStyle 通知（Android 16+）
      * 
      * 使用官方 API，无需反射
+     * 
+     * 注意：ProgressStyle 在 Android 16 (API 35) 引入，
+     * 但部分设备可能需要更高版本才能完全支持
      */
     private fun buildProgressStyleNotification(
         title: String,
@@ -304,6 +307,8 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         addLog("✅ 使用 ProgressStyle API 构建")
         
         // 创建 ProgressStyle
+        // 使用 @Suppress 消除新 API 警告
+        @Suppress("NewApi")
         val progressStyle = Notification.ProgressStyle()
             .setStyledByProgress(false)  // 不自动根据进度设置样式
             .setProgress(100)  // 总进度
