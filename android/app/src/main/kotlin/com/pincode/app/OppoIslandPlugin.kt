@@ -355,14 +355,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     
     /**
      * 获取进度追踪器图标资源 ID
+     * 统一使用 App 图标
      */
     private fun getTrackerIconResource(emoji: String): Int {
-        return when (emoji) {
-            "📦" -> android.R.drawable.ic_menu_upload  // 快递
-            "🍔" -> android.R.drawable.ic_menu_delete  // 外卖
-            "🚗" -> android.R.drawable.ic_menu_send    // 出行
-            else -> android.R.drawable.ic_menu_info_details
-        }
+        return R.mipmap.ic_launcher
     }
     
     /**
@@ -380,15 +376,11 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
     }
     
     /**
-     * 根据类型 emoji 获取对应的图标资源 ID
+     * 获取通知小图标资源 ID
+     * 统一使用 App 图标
      */
     private fun getTypeIcon(emoji: String): Int {
-        return when (emoji) {
-            "📦" -> android.R.drawable.ic_menu_upload
-            "🍔" -> android.R.drawable.ic_menu_delete
-            "🚗" -> android.R.drawable.ic_menu_send
-            else -> android.R.drawable.ic_menu_info_details
-        }
+        return R.mipmap.ic_launcher
     }
     
     /**
