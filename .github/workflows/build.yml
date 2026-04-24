@@ -4,7 +4,7 @@ name: Build Flutter APK
 on:
   # 推送到 main 分支时触发
   push:
-    branches: [ main, master, refactor/* ]
+    branches: [ main, master ]
   # 手动触发
   workflow_dispatch:
   # Pull Request 时触发
