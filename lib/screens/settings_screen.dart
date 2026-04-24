@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/notification_service.dart';
-import '../services/reminder_service.dart';
 import '../services/sms_listener_service.dart';
 import '../theme/theme_manager.dart';
 import 'island_log_screen.dart';
@@ -16,18 +16,35 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // 定时提醒设置
+  int _reminderHour = 18;
+  int _reminderMinute = 30;
+  int _reminderMode = 1; // 0: 每天, 1: 工作日, 2: 关闭
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderSettings();
+  }
+  
+  /// 加载定时提醒设置
+  Future<void> _loadReminderSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _reminderHour = prefs.getInt('reminder_hour') ?? 18;
+      _reminderMinute = prefs.getInt('reminder_minute') ?? 30;
+      _reminderMode = prefs.getInt('reminder_mode') ?? 1;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-      ),
+      appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
           // 外观设置
           _buildSectionHeader('外观'),
-          
-          // 主题模式
           Consumer<ThemeManager>(
             builder: (context, themeManager, child) {
               return ListTile(
@@ -44,7 +61,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           // 短信识别设置
           _buildSectionHeader('短信识别'),
-          
           Consumer<SmsListenerService>(
             builder: (context, smsListener, child) {
               return ListTile(
@@ -53,82 +69,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: Text(smsListener.isEnabled ? '已开启' : '已关闭'),
                 trailing: Switch(
                   value: smsListener.isEnabled,
-                  onChanged: (value) async {
-                    if (value) {
-                      // 开启前检查短信权限
-                      final status = await Permission.sms.status;
-                      if (!status.isGranted) {
-                        final result = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('需要短信权限'),
-                            content: const Text('开启短信识别需要授予短信读取权限。是否继续？'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('取消'),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('授权'),
-                              ),
-                            ],
-                          ),
-                        );
-                        
-                        if (result != true) return;
-                        
-                        final granted = await Permission.sms.request();
-                        if (!granted.isGranted) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('短信权限未授予')),
-                            );
-                          }
-                          return;
-                        }
-                      }
-                      await smsListener.enable();
-                    } else {
-                      await smsListener.disable();
-                    }
-                    // 触发 UI 更新
-                    setState(() {});
-                  },
+                  onChanged: (value) => _toggleSmsListener(smsListener, value),
                 ),
               );
             },
           ),
-          
-          // 短信识别说明
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '开启后，收到取件短信时会自动识别并添加到列表。关闭后将不再读取短信。',
-                      style: TextStyle(color: Colors.orange[700], fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _buildInfoBox(
+            '开启后，收到取件短信时会自动识别并添加到列表。',
+            Colors.orange,
           ),
           
           const Divider(),
           
           // 通知设置
           _buildSectionHeader('通知设置'),
-          
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('通知权限'),
@@ -141,101 +95,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           // 取快递提醒
           _buildSectionHeader('取快递提醒'),
-          
-          // 提醒模式选择
-          Consumer<ReminderService>(
-            builder: (context, reminderService, child) {
-              return ListTile(
-                leading: const Icon(Icons.alarm),
-                title: const Text('提醒模式'),
-                subtitle: Text(reminderService.reminderMode.description),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _selectReminderMode(context, reminderService),
-              );
-            },
+          ListTile(
+            leading: const Icon(Icons.alarm),
+            title: const Text('提醒模式'),
+            subtitle: Text(_getReminderModeName()),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _selectReminderMode,
           ),
-          
-          // 提醒时间
-          Consumer<ReminderService>(
-            builder: (context, reminderService, child) {
-              return ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('提醒时间'),
-                subtitle: Text(
-                  '${reminderService.reminderHour.toString().padLeft(2, '0')}:${reminderService.reminderMinute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                enabled: reminderService.reminderMode != ReminderMode.disabled,
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _selectReminderTime(context, reminderService),
-              );
-            },
+          ListTile(
+            leading: const Icon(Icons.access_time),
+            title: const Text('提醒时间'),
+            subtitle: Text(
+              '${_reminderHour.toString().padLeft(2, '0')}:${_reminderMinute.toString().padLeft(2, '0')}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            enabled: _reminderMode != 2,
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _selectReminderTime,
           ),
-          
-          // 提示信息
-          Consumer<ReminderService>(
-            builder: (context, reminderService, child) {
-              if (reminderService.reminderMode == ReminderMode.disabled) {
-                return const SizedBox.shrink();
-              }
-              
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          reminderService.reminderMode == ReminderMode.workday
-                              ? '将在周一至周五的 ${reminderService.reminderHour.toString().padLeft(2, '0')}:${reminderService.reminderMinute.toString().padLeft(2, '0')} 提醒你取快递'
-                              : '将在每天的 ${reminderService.reminderHour.toString().padLeft(2, '0')}:${reminderService.reminderMinute.toString().padLeft(2, '0')} 提醒你取快递',
-                          style: TextStyle(color: Colors.blue[700], fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          if (_reminderMode != 2)
+            _buildInfoBox(
+              _reminderMode == 1
+                  ? '将在周一至周五的 ${_reminderHour.toString().padLeft(2, '0')}:${_reminderMinute.toString().padLeft(2, '0')} 提醒你取快递'
+                  : '将在每天的 ${_reminderHour.toString().padLeft(2, '0')}:${_reminderMinute.toString().padLeft(2, '0')} 提醒你取快递',
+              Colors.blue,
+            ),
           
           const Divider(),
           
           // 开发调试
           _buildSectionHeader('开发调试'),
-          
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
             title: const Text('灵动岛日志'),
             subtitle: const Text('查看流体云/灵动岛调试日志'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const IslandLogScreen()),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const IslandLogScreen()),
+            ),
           ),
           
           const Divider(),
           
           // 关于
           _buildSectionHeader('关于'),
-          
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('版本'),
-            subtitle: Text('v1.0.48-beta'),
+            subtitle: Text('v1.0.49-beta'),
           ),
-          
-
         ],
       ),
     );
@@ -247,13 +156,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[600],
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+      ),
+    );
+  }
+
+  /// 构建提示框
+  Widget _buildInfoBox(String text, MaterialColor color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color[50],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: color[700], size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text, style: TextStyle(color: color[700], fontSize: 12)),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  /// 切换短信监听
+  Future<void> _toggleSmsListener(SmsListenerService smsListener, bool value) async {
+    if (value) {
+      final status = await Permission.sms.status;
+      if (!status.isGranted) {
+        final result = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('需要短信权限'),
+            content: const Text('开启短信识别需要授予短信读取权限。是否继续？'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('授权')),
+            ],
+          ),
+        );
+        
+        if (result != true) return;
+        
+        final granted = await Permission.sms.request();
+        if (!granted.isGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('短信权限未授予')));
+          }
+          return;
+        }
+      }
+      await smsListener.enable();
+    } else {
+      await smsListener.disable();
+    }
+    setState(() {});
   }
 
   /// 检查通知权限
@@ -263,9 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     
     if (status.isGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('通知权限已开启')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('通知权限已开启')));
     } else {
       final result = await showDialog<bool>(
         context: context,
@@ -273,67 +233,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('通知权限未开启'),
           content: const Text('是否前往系统设置开启通知权限？'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('去设置'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('去设置')),
           ],
         ),
       );
       
-      if (result == true) {
-        await openAppSettings();
-      }
+      if (result == true) await openAppSettings();
+    }
+  }
+
+  /// 获取提醒模式名称
+  String _getReminderModeName() {
+    switch (_reminderMode) {
+      case 0: return '每天提醒';
+      case 1: return '工作日提醒';
+      default: return '关闭';
     }
   }
 
   /// 选择提醒模式
-  Future<void> _selectReminderMode(BuildContext context, ReminderService reminderService) async {
-    final result = await showDialog<ReminderMode>(
+  Future<void> _selectReminderMode() async {
+    final result = await showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('选择提醒模式'),
-        children: ReminderMode.values.map((mode) {
-          return SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, mode),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 0),
             child: ListTile(
-              leading: Radio<ReminderMode>(
-                value: mode,
-                groupValue: reminderService.reminderMode,
-                onChanged: (_) {}, // 不需要处理，点击整行即可
-              ),
-              title: Text(mode.label),
-              subtitle: Text(mode.description),
+              leading: Radio<int>(value: 0, groupValue: _reminderMode, onChanged: (_) {}),
+              title: const Text('每天'),
+              subtitle: const Text('每天提醒'),
             ),
-          );
-        }).toList(),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 1),
+            child: ListTile(
+              leading: Radio<int>(value: 1, groupValue: _reminderMode, onChanged: (_) {}),
+              title: const Text('工作日'),
+              subtitle: const Text('周一至周五提醒'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 2),
+            child: ListTile(
+              leading: Radio<int>(value: 2, groupValue: _reminderMode, onChanged: (_) {}),
+              title: const Text('关闭'),
+              subtitle: const Text('不提醒'),
+            ),
+          ),
+        ],
       ),
     );
     
-    if (result != null && result != reminderService.reminderMode) {
-      await reminderService.setReminderMode(result);
+    if (result != null && result != _reminderMode) {
+      setState(() => _reminderMode = result);
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('reminder_mode', result);
+      
+      // 更新定时提醒
+      final notificationService = context.read<NotificationService>();
+      if (result == 2) {
+        await notificationService.cancelDailyReminder(workdayOnly: true);
+        await notificationService.cancelDailyReminder(workdayOnly: false);
+      } else {
+        await notificationService.scheduleDailyReminder(
+          hour: _reminderHour,
+          minute: _reminderMinute,
+          workdayOnly: result == 1,
+        );
+      }
     }
   }
 
   /// 选择提醒时间
-  Future<void> _selectReminderTime(BuildContext context, ReminderService reminderService) async {
+  Future<void> _selectReminderTime() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay(
-        hour: reminderService.reminderHour,
-        minute: reminderService.reminderMinute,
-      ),
+      initialTime: TimeOfDay(hour: _reminderHour, minute: _reminderMinute),
       helpText: '选择提醒时间',
       confirmText: '确定',
       cancelText: '取消',
     );
     
     if (picked != null) {
-      await reminderService.setReminderTime(picked.hour, picked.minute);
+      setState(() {
+        _reminderHour = picked.hour;
+        _reminderMinute = picked.minute;
+      });
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('reminder_hour', picked.hour);
+      await prefs.setInt('reminder_minute', picked.minute);
+      
+      // 更新定时提醒
+      if (_reminderMode != 2) {
+        final notificationService = context.read<NotificationService>();
+        await notificationService.scheduleDailyReminder(
+          hour: picked.hour,
+          minute: picked.minute,
+          workdayOnly: _reminderMode == 1,
+        );
+      }
     }
   }
 
@@ -347,46 +350,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, ThemeMode.system),
             child: ListTile(
-              leading: Radio<ThemeMode>(
-                value: ThemeMode.system,
-                groupValue: themeManager.themeMode,
-                onChanged: (_) {},
-              ),
-              leadingAndTrailingTextStyle: const TextStyle(fontSize: 20),
+              leading: Radio<ThemeMode>(value: ThemeMode.system, groupValue: themeManager.themeMode, onChanged: (_) {}),
               title: const Text('跟随系统'),
-              subtitle: const Text('自动跟随系统设置'),
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, ThemeMode.light),
             child: ListTile(
-              leading: Radio<ThemeMode>(
-                value: ThemeMode.light,
-                groupValue: themeManager.themeMode,
-                onChanged: (_) {},
-              ),
+              leading: Radio<ThemeMode>(value: ThemeMode.light, groupValue: themeManager.themeMode, onChanged: (_) {}),
               title: const Text('亮色模式'),
-              subtitle: const Text('始终使用亮色主题'),
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, ThemeMode.dark),
             child: ListTile(
-              leading: Radio<ThemeMode>(
-                value: ThemeMode.dark,
-                groupValue: themeManager.themeMode,
-                onChanged: (_) {},
-              ),
+              leading: Radio<ThemeMode>(value: ThemeMode.dark, groupValue: themeManager.themeMode, onChanged: (_) {}),
               title: const Text('暗黑模式'),
-              subtitle: const Text('始终使用深蓝黑主题'),
             ),
           ),
         ],
       ),
     );
     
-    if (result != null) {
-      await themeManager.setThemeMode(result);
-    }
+    if (result != null) await themeManager.setThemeMode(result);
   }
 }

@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.Icon
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.engine.FlutterEngine
@@ -31,12 +30,12 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         private const val CHANNEL_NAME = "com.pincode.app/oppo_island"
         private const val NOTIFICATION_CHANNEL_ID = "pincode_channel_v2"
         
-        // 灵动岛通知的基础 ID
-        private const val BASE_NOTIFICATION_ID = 10000
-        
         // 日志缓存（最多保留 200 条）
         private val logBuffer = mutableListOf<String>()
         private const val MAX_LOG_SIZE = 200
+        
+        // 已创建的通知 ID 集合（用于高效取消）
+        private val activeNotificationIds = mutableSetOf<Int>()
         
         fun register(flutterEngine: FlutterEngine, context: Context) {
             val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
@@ -49,26 +48,16 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             val logEntry = "[$timestamp] $message"
             
             synchronized(logBuffer) {
-                if (logBuffer.size >= MAX_LOG_SIZE) {
-                    logBuffer.removeAt(0)
-                }
+                if (logBuffer.size >= MAX_LOG_SIZE) logBuffer.removeAt(0)
                 logBuffer.add(logEntry)
             }
             
             android.util.Log.d("OppoIslandPlugin", message)
         }
         
-        private fun getLogs(): List<String> {
-            synchronized(logBuffer) {
-                return logBuffer.toList()
-            }
-        }
+        private fun getLogs(): List<String> = synchronized(logBuffer) { logBuffer.toList() }
         
-        private fun clearLogs() {
-            synchronized(logBuffer) {
-                logBuffer.clear()
-            }
-        }
+        private fun clearLogs() = synchronized(logBuffer) { logBuffer.clear() }
     }
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -77,16 +66,10 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         createNotificationChannel()
     }
     
-    /**
-     * 创建通知渠道（Android 8.0+）
-     */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val existingChannel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-            if (existingChannel != null) {
-                addLog("通知渠道已存在: $NOTIFICATION_CHANNEL_ID")
-                return
-            }
+            if (existingChannel != null) return
             
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
@@ -99,30 +82,21 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             }
             
             notificationManager.createNotificationChannel(channel)
-            addLog("✅ 通知渠道创建成功: $NOTIFICATION_CHANNEL_ID")
+            addLog("通知渠道创建成功: $NOTIFICATION_CHANNEL_ID")
         }
     }
     
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "init" -> {
-                val isSupported = checkIslandSupport()
-                result.success(isSupported)
-            }
-            "getDeviceInfo" -> {
-                val info = getDeviceInfo()
-                result.success(info)
-            }
+            "init" -> result.success(checkIslandSupport())
+            "getDeviceInfo" -> result.success(getDeviceInfo())
             "showCode" -> {
-                addLog("=== showCode 被调用 ===")
                 val id = call.argument<String>("id") ?: ""
                 val title = call.argument<String>("title") ?: "取件码"
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
                 val location = call.argument<String>("location") ?: ""
-                
-                val success = showLiveUpdateNotification(id, title, code, type, location)
-                result.success(success)
+                result.success(showLiveUpdateNotification(id, title, code, type, location))
             }
             "updateCode" -> {
                 val id = call.argument<String>("id") ?: ""
@@ -130,59 +104,22 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
                 val code = call.argument<String>("code") ?: ""
                 val type = call.argument<String>("type") ?: "express"
                 val location = call.argument<String>("location") ?: ""
-                
-                val success = showLiveUpdateNotification(id, title, code, type, location)
-                result.success(success)
+                result.success(showLiveUpdateNotification(id, title, code, type, location))
             }
             "hideCode" -> {
                 val id = call.argument<String>("id") ?: ""
-                val success = hideLiveUpdateNotification(id)
-                result.success(success)
+                result.success(hideLiveUpdateNotification(id))
             }
-            "hideAll" -> {
-                val success = hideAllLiveUpdates()
-                result.success(success)
-            }
-            "getLogs" -> {
-                val logs = getLogs()
-                result.success(logs)
-            }
-            "clearLogs" -> {
-                clearLogs()
-                result.success(true)
-            }
-            else -> {
-                result.notImplemented()
-            }
+            "hideAll" -> result.success(hideAllLiveUpdates())
+            "getLogs" -> result.success(getLogs())
+            "clearLogs" -> { clearLogs(); result.success(true) }
+            else -> result.notImplemented()
         }
     }
     
-    /**
-     * 检查是否支持灵动岛（ProgressStyle API）
-     */
     private fun checkIslandSupport(): Boolean {
         val sdkInt = Build.VERSION.SDK_INT
-        val manufacturer = Build.MANUFACTURER.lowercase()
-        val brand = Build.BRAND.lowercase()
-        
-        addLog("=== 设备信息 ===")
-        addLog("SDK 版本: $sdkInt (${getAndroidVersionName(sdkInt)})")
-        addLog("厂商: $manufacturer")
-        addLog("品牌: $brand")
-        addLog("型号: ${Build.MODEL}")
-        
-        // 检查是否是 OPPO 系设备
-        val isOppoDevice = manufacturer == "oppo" || 
-                          manufacturer == "oneplus" || 
-                          manufacturer == "realme" ||
-                          brand == "oppo" ||
-                          brand == "oneplus" ||
-                          brand == "realme"
-        
-        if (isOppoDevice) {
-            val colorOsVersion = getSystemProperty("ro.build.version.oplus")
-            addLog("ColorOS 版本: $colorOsVersion")
-        }
+        addLog("SDK: $sdkInt, 厂商: ${Build.MANUFACTURER}, 型号: ${Build.MODEL}")
         
         // Android 16 (API 35) 及以上支持 ProgressStyle
         val progressStyleAvailable = sdkInt >= 35
@@ -191,217 +128,108 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
         return progressStyleAvailable
     }
     
-    /**
-     * 获取 Android 版本名称
-     */
-    private fun getAndroidVersionName(sdkInt: Int): String {
-        return when (sdkInt) {
-            35 -> "16 (BAKLAVA)"
-            34 -> "14 (UPSIDE_DOWN_CAKE)"
-            33 -> "13 (TIRAMISU)"
-            32 -> "12L (S_V2)"
-            31 -> "12 (S)"
-            30 -> "11 (R)"
-            29 -> "10 (Q)"
-            28 -> "9 (P)"
-            else -> "API $sdkInt"
-        }
-    }
-    
-    /**
-     * 获取系统属性
-     */
-    private fun getSystemProperty(key: String): String {
-        return try {
-            val process = Runtime.getRuntime().exec("getprop $key")
-            process.inputStream.bufferedReader().readText().trim()
-        } catch (e: Exception) {
-            ""
-        }
-    }
-    
-    /**
-     * 获取设备信息
-     */
     private fun getDeviceInfo(): Map<String, Any?> {
-        val colorOsVersion = getSystemProperty("ro.build.version.oplus")
-        val oxygenOsVersion = getSystemProperty("ro.build.version.oxygen")
-        
         return mapOf(
             "manufacturer" to Build.MANUFACTURER,
             "model" to Build.MODEL,
             "brand" to Build.BRAND,
-            "colorOsVersion" to colorOsVersion,
-            "oxygenOsVersion" to oxygenOsVersion,
             "androidVersion" to Build.VERSION.SDK_INT,
-            "androidVersionName" to getAndroidVersionName(Build.VERSION.SDK_INT),
             "supportsProgressStyle" to (Build.VERSION.SDK_INT >= 35)
         )
     }
     
-    /**
-     * 显示实时活动通知
-     */
     private fun showLiveUpdateNotification(id: String, title: String, code: String, type: String, location: String = ""): Boolean {
-        addLog("=== 显示通知 ===")
-        addLog("ID: $id, 标题: $title, 取件码: $code, 类型: $type, 地点: $location")
-        
         return try {
-            val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
+            val notificationId = 10000 + (id.hashCode() and 0xFFFF)
             
-            // 创建点击 Intent
             val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             val pendingIntent = PendingIntent.getActivity(
-                context,
-                notificationId,
-                intent,
+                context, notificationId, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
-            // 根据类型选择颜色
             val accentColor = getTypeColor(type)
             
-            // 构建通知
             val notification = if (Build.VERSION.SDK_INT >= 35) {
-                // Android 16+: 使用 ProgressStyle API
                 buildProgressStyleNotification(title, code, location, accentColor, pendingIntent)
             } else {
-                // Android 16 以下: 使用普通高优先级通知
                 buildFallbackNotification(title, code, location, accentColor, pendingIntent)
             }
             
             notificationManager.notify(notificationId, notification)
-            addLog("✅ 通知显示成功，ID: $notificationId")
+            
+            // 记录已创建的通知 ID
+            synchronized(activeNotificationIds) { activeNotificationIds.add(notificationId) }
+            
+            addLog("通知显示成功: $code, ID: $notificationId")
             true
         } catch (e: Exception) {
-            addLog("❌ 显示通知失败: ${e.message}")
-            e.printStackTrace()
+            addLog("通知显示失败: ${e.message}")
             false
         }
     }
     
-    /**
-     * 获取类型对应的颜色
-     */
-    private fun getTypeColor(type: String): Int {
-        return when (type) {
-            "express" -> Color.parseColor("#FF9800")  // 橙色 - 快递
-            "food" -> Color.parseColor("#4CAF50")     // 绿色 - 外卖
-            "travel" -> Color.parseColor("#2196F3")   // 蓝色 - 出行
-            else -> Color.parseColor("#9C27B0")       // 紫色 - 其他
-        }
+    private fun getTypeColor(type: String): Int = when (type) {
+        "express" -> Color.parseColor("#FF9800")
+        "food" -> Color.parseColor("#4CAF50")
+        "travel" -> Color.parseColor("#2196F3")
+        else -> Color.parseColor("#9C27B0")
     }
     
-    /**
-     * 构建 ProgressStyle 通知（Android 16+）
-     * 
-     * 使用 Android 16 官方 Live Updates API
-     * 参考：https://developer.android.com/about/versions/16/features/progress-centric-notifications
-     */
     @Suppress("NewApi")
     private fun buildProgressStyleNotification(
-        title: String,
-        code: String,
-        location: String,
-        accentColor: Int,
-        pendingIntent: PendingIntent
+        title: String, code: String, location: String, accentColor: Int, pendingIntent: PendingIntent
     ): Notification {
-        addLog("✅ 使用 ProgressStyle API 构建")
-        
-        // 解析标题：提取 emoji 和地点名称
         val (emoji, locationName) = parseTitle(title)
         
-        // 创建进度追踪器图标
-        val trackerIcon = Icon.createWithResource(context, getTrackerIconResource(emoji))
-        
-        // 创建 ProgressStyle - 模拟"待取件"旅程
-        // 进度点：表示里程碑
         val progressPoints = listOf(
-            Notification.ProgressStyle.Point(0).setColor(Color.parseColor("#4CAF50")),   // 已到达（绿色）
-            Notification.ProgressStyle.Point(100).setColor(Color.parseColor("#9E9E9E"))  // 待取件（灰色）
+            Notification.ProgressStyle.Point(0).setColor(Color.parseColor("#4CAF50")),
+            Notification.ProgressStyle.Point(100).setColor(Color.parseColor("#9E9E9E"))
         )
         
-        // 进度段：表示状态
         val progressSegments = listOf(
-            Notification.ProgressStyle.Segment(100).setColor(accentColor)  // 整体进度，使用类型颜色
+            Notification.ProgressStyle.Segment(100).setColor(accentColor)
         )
         
         val progressStyle = Notification.ProgressStyle()
-            .setStyledByProgress(false)  // 不自动根据进度设置样式
-            .setProgress(100)  // 当前进度（100 表示已到达，等待取件）
-            .setProgressTrackerIcon(trackerIcon)  // 设置追踪器图标
+            .setStyledByProgress(false)
+            .setProgress(100)
+            .setProgressTrackerIcon(android.graphics.drawable.Icon.createWithResource(context, R.mipmap.ic_launcher))
             .setProgressSegments(progressSegments)
             .setProgressPoints(progressPoints)
         
-        // 构建通知
-        // 显示结构：
-        // - 副标题(subText): 空
-        // - 标题(contentTitle): 地点名称（如"水岸明珠世纪华联"）
-        // - 内容(contentText): 取件码（如"0706-0331"）
         return Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(getTypeIcon(emoji))
-            .setContentTitle(locationName.ifEmpty { location })  // 标题：地点名称
-            .setContentText(code)  // 内容：取件码
-            .setSubText(null)  // 副标题：空
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(locationName.ifEmpty { location })
+            .setContentText(code)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)  // 常驻通知
+            .setOngoing(true)
             .setAutoCancel(false)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)  // 锁屏可见
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setCategory(Notification.CATEGORY_STATUS)
-            .setColor(accentColor)  // 通知背景色
-            .setStyle(progressStyle)  // 应用 ProgressStyle
+            .setColor(accentColor)
+            .setStyle(progressStyle)
             .build()
     }
     
-    /**
-     * 获取进度追踪器图标资源 ID
-     * 统一使用 App 图标
-     */
-    private fun getTrackerIconResource(emoji: String): Int {
-        return R.mipmap.ic_launcher
-    }
-    
-    /**
-     * 解析标题，提取 emoji 和地点名称
-     */
     private fun parseTitle(title: String): Pair<String, String> {
         val spaceIndex = title.indexOf(' ')
         return if (spaceIndex > 0) {
-            val emoji = title.substring(0, spaceIndex).trim()
-            val locationName = title.substring(spaceIndex + 1).trim()
-            Pair(emoji, locationName)
+            title.substring(0, spaceIndex).trim() to title.substring(spaceIndex + 1).trim()
         } else {
-            Pair("", title)
+            "" to title
         }
     }
     
-    /**
-     * 获取通知小图标资源 ID
-     * 统一使用 App 图标
-     */
-    private fun getTypeIcon(emoji: String): Int {
-        return R.mipmap.ic_launcher
-    }
-    
-    /**
-     * 构建降级通知（Android 16 以下）
-     */
     private fun buildFallbackNotification(
-        title: String,
-        code: String,
-        location: String,
-        accentColor: Int,
-        pendingIntent: PendingIntent
+        title: String, code: String, location: String, accentColor: Int, pendingIntent: PendingIntent
     ): Notification {
-        addLog("⚠️ 使用降级通知样式（Android 16 以下）")
-        
         val (emoji, locationName) = parseTitle(title)
         
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(getTypeIcon(emoji))
-            .setContentTitle(locationName.ifEmpty { location })  // 标题：地点名称
-            .setContentText(code)  // 内容：取件码
-            .setSubText(null)  // 副标题：空
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(locationName.ifEmpty { location })
+            .setContentText(code)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -413,33 +241,36 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .build()
     }
     
-    /**
-     * 隐藏实时活动通知
-     */
     private fun hideLiveUpdateNotification(id: String): Boolean {
         return try {
-            val notificationId = BASE_NOTIFICATION_ID + id.hashCode()
+            val notificationId = 10000 + (id.hashCode() and 0xFFFF)
             notificationManager.cancel(notificationId)
-            addLog("✅ 隐藏通知成功，ID: $notificationId")
+            
+            synchronized(activeNotificationIds) { activeNotificationIds.remove(notificationId) }
+            
+            addLog("通知隐藏成功: $notificationId")
             true
         } catch (e: Exception) {
-            addLog("❌ 隐藏通知失败: ${e.message}")
+            addLog("通知隐藏失败: ${e.message}")
             false
         }
     }
     
     /**
-     * 隐藏所有实时活动通知
+     * 隐藏所有通知（只取消已创建的通知，不再遍历 10001 个 ID）
      */
     private fun hideAllLiveUpdates(): Boolean {
         return try {
-            for (i in 10000..20000) {
-                notificationManager.cancel(i)
+            synchronized(activeNotificationIds) {
+                for (id in activeNotificationIds) {
+                    notificationManager.cancel(id)
+                }
+                activeNotificationIds.clear()
             }
-            addLog("✅ 隐藏所有通知成功")
+            addLog("所有通知已隐藏")
             true
         } catch (e: Exception) {
-            addLog("❌ 隐藏所有通知失败: ${e.message}")
+            addLog("隐藏所有通知失败: ${e.message}")
             false
         }
     }

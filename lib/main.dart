@@ -3,12 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/code_manager.dart';
 import 'services/notification_service.dart';
-import 'services/reminder_service.dart';
 import 'services/sms_listener_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_manager.dart';
 
+/// 应用入口
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -20,23 +20,17 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.init();
   
-  // 初始化定时提醒服务
-  final reminderService = ReminderService(notificationService: notificationService);
-  await reminderService.init();
-  
   // 初始化取件码管理器（带超时保护，防止卡启动页）
   final codeManager = CodeManager(notificationService: notificationService);
   try {
-    // 设置 5 秒超时，避免初始化卡住
     await codeManager.init().timeout(
       const Duration(seconds: 5),
       onTimeout: () {
-        print('CodeManager init timeout, continuing anyway...');
+        debugPrint('CodeManager init timeout, continuing anyway...');
       },
     );
   } catch (e) {
-    print('CodeManager init failed: $e');
-    // 即使初始化失败，也继续运行 App
+    debugPrint('CodeManager init failed: $e');
   }
   
   // 初始化短信监听服务
@@ -48,16 +42,15 @@ void main() async {
     themeManager: themeManager,
     smsListener: smsListener,
     notificationService: notificationService,
-    reminderService: reminderService,
   ));
 }
 
+/// 应用根组件
 class MyApp extends StatelessWidget {
   final CodeManager codeManager;
   final ThemeManager themeManager;
   final SmsListenerService smsListener;
   final NotificationService notificationService;
-  final ReminderService reminderService;
 
   const MyApp({
     super.key,
@@ -65,7 +58,6 @@ class MyApp extends StatelessWidget {
     required this.themeManager,
     required this.smsListener,
     required this.notificationService,
-    required this.reminderService,
   });
 
   @override
@@ -76,24 +68,22 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<ThemeManager>.value(value: themeManager),
         Provider<SmsListenerService>.value(value: smsListener),
         Provider<NotificationService>.value(value: notificationService),
-        ChangeNotifierProvider<ReminderService>.value(value: reminderService),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, child) {
           return MaterialApp(
             title: '记忆岛',
             debugShowCheckedModeBanner: false,
-            // 中文本地化配置
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
             supportedLocales: const [
-              Locale('zh', 'CN'), // 中文
-              Locale('en', 'US'), // 英文
+              Locale('zh', 'CN'),
+              Locale('en', 'US'),
             ],
-            locale: const Locale('zh', 'CN'), // 默认中文
+            locale: const Locale('zh', 'CN'),
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeManager.themeMode,

@@ -9,10 +9,11 @@ import '../models/code_item.dart';
 class OppoIslandService {
   static const MethodChannel _channel = MethodChannel('com.pincode.app/oppo_island');
 
-  bool _isInitialized = false;
-  bool _isSupported = false;
+  /// 单例模式 - 状态变量必须是 static 的
+  static bool _isInitialized = false;
+  static bool _isSupported = false;
 
-  /// 单例模式
+  /// 单例实例
   static final OppoIslandService _instance = OppoIslandService._internal();
   factory OppoIslandService() => _instance;
   OppoIslandService._internal();
@@ -22,27 +23,25 @@ class OppoIslandService {
     if (_isInitialized) return _isSupported;
 
     if (defaultTargetPlatform != TargetPlatform.android) {
-      print('不是 Android 平台，跳过灵动岛初始化');
+      debugPrint('不是 Android 平台，跳过灵动岛初始化');
       _isInitialized = true;
       return false;
     }
 
     try {
-      // 先获取设备信息（用于日志）
       final deviceInfo = await _channel.invokeMethod<Map<String, dynamic>>('getDeviceInfo');
       if (deviceInfo != null) {
-        print('设备信息: $deviceInfo');
+        debugPrint('设备信息: $deviceInfo');
       }
 
-      // 调用原生初始化，由原生端判断是否支持
       final result = await _channel.invokeMethod<bool>('init');
       _isSupported = result ?? false;
       _isInitialized = true;
 
-      print('OPPO 灵动岛服务初始化完成, 支持状态: $_isSupported');
+      debugPrint('OPPO 灵动岛服务初始化完成, 支持状态: $_isSupported');
       return _isSupported;
     } catch (e) {
-      print('OPPO 灵动岛服务初始化失败: $e');
+      debugPrint('OPPO 灵动岛服务初始化失败: $e');
       _isInitialized = true;
       _isSupported = false;
       return false;
@@ -57,30 +56,21 @@ class OppoIslandService {
 
   /// 显示取件码到灵动岛
   Future<bool> showCode(CodeItem code) async {
-    print('=== showCode 被调用 ===');
-    print('取件码: ${code.id}, ${code.code}, 地点: ${code.location}');
+    debugPrint('showCode: ${code.id}, ${code.code}');
     
-    if (!_isInitialized) {
-      print('服务未初始化，开始初始化...');
-      await init();
-    }
+    if (!_isInitialized) await init();
     
-    print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
-    
-    // 无论是否支持，都调用原生方法（用于日志记录）
     try {
-      print('调用原生 showCode...');
       final result = await _channel.invokeMethod<bool>('showCode', {
         'id': code.id,
-        'title': '${code.type.emoji} ${code.location}',
+        'title': '${code.type.emoji} ${code.location ?? ""}',
         'code': code.code,
         'type': code.type.name,
-        'location': code.location ?? '',  // 传递地点信息
+        'location': code.location ?? '',
       });
-      print('原生 showCode 返回: $result');
       return result ?? false;
     } catch (e) {
-      print('OPPO 灵动岛显示取件码失败: $e');
+      debugPrint('OPPO 灵动岛显示失败: $e');
       return false;
     }
   }
@@ -93,64 +83,44 @@ class OppoIslandService {
     try {
       final result = await _channel.invokeMethod<bool>('updateCode', {
         'id': code.id,
-        'title': '${code.type.emoji} ${code.location}',
+        'title': '${code.type.emoji} ${code.location ?? ""}',
         'code': code.code,
         'type': code.type.name,
-        'location': code.location ?? '',  // 传递地点信息
+        'location': code.location ?? '',
       });
-
       return result ?? false;
     } catch (e) {
-      print('OPPO 灵动岛更新失败: $e');
+      debugPrint('OPPO 灵动岛更新失败: $e');
       return false;
     }
   }
 
   /// 隐藏灵动岛
   Future<bool> hideCode(String codeId) async {
-    print('=== hideCode 被调用 ===');
-    print('取件码 ID: $codeId');
+    debugPrint('hideCode: $codeId');
     
-    if (!_isInitialized) {
-      print('服务未初始化，开始初始化...');
-      await init();
-    }
+    if (!_isInitialized) await init();
     
-    print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
-    
-    // 无论是否支持，都调用原生方法（确保通知被取消）
     try {
-      print('调用原生 hideCode...');
-      final result = await _channel.invokeMethod<bool>('hideCode', {
-        'id': codeId,
-      });
-      print('原生 hideCode 返回: $result');
+      final result = await _channel.invokeMethod<bool>('hideCode', {'id': codeId});
       return result ?? false;
     } catch (e) {
-      print('OPPO 灵动岛隐藏失败: $e');
+      debugPrint('OPPO 灵动岛隐藏失败: $e');
       return false;
     }
   }
 
   /// 隐藏所有灵动岛
   Future<bool> hideAll() async {
-    print('=== hideAll 被调用 ===');
+    debugPrint('hideAll');
     
-    if (!_isInitialized) {
-      print('服务未初始化，开始初始化...');
-      await init();
-    }
+    if (!_isInitialized) await init();
     
-    print('初始化状态: $_isInitialized, 支持状态: $_isSupported');
-    
-    // 无论是否支持，都调用原生方法（确保所有通知被取消）
     try {
-      print('调用原生 hideAll...');
       final result = await _channel.invokeMethod<bool>('hideAll');
-      print('原生 hideAll 返回: $result');
       return result ?? false;
     } catch (e) {
-      print('OPPO 灵动岛隐藏所有失败: $e');
+      debugPrint('OPPO 灵动岛隐藏所有失败: $e');
       return false;
     }
   }

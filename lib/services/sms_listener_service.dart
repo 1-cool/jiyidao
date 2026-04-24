@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/code_item.dart';
@@ -7,44 +8,38 @@ import 'pattern_matcher.dart';
 
 /// 短信监听服务
 /// 
-/// 通过 EventChannel 接收原生层的短信取件码事件
+/// 通过 EventChannel 接收原生层的短信事件
+/// 所有正则匹配统一在 Flutter 端的 PatternMatcher 处理
 class SmsListenerService {
   static const String _eventChannelName = 'com.pincode.app/sms_receiver';
   static const String _methodChannelName = 'com.pincode.app/method';
+  static const String _prefKey = 'sms_listener_enabled';
   
   static const EventChannel _eventChannel = EventChannel(_eventChannelName);
   static const MethodChannel _methodChannel = MethodChannel(_methodChannelName);
   
-  static const String _prefKey = 'sms_listener_enabled';
-  
   StreamSubscription? _subscription;
   CodeManager? _codeManager;
   
-  /// 单例模式
+  /// 单例模式 - 状态变量必须是 static 的
+  static bool _isEnabled = false;
   static final SmsListenerService _instance = SmsListenerService._internal();
+  
   factory SmsListenerService() => _instance;
   SmsListenerService._internal();
   
-  /// 是否已启用
-  bool _isEnabled = false;
   bool get isEnabled => _isEnabled;
   
   /// 初始化服务
-  /// 
-  /// [codeManager] 取件码管理器，用于自动添加识别到的取件码
   Future<void> init(CodeManager codeManager) async {
     _codeManager = codeManager;
     
-    // 读取设置（默认关闭，需要用户主动开启）
     final prefs = await SharedPreferences.getInstance();
     _isEnabled = prefs.getBool(_prefKey) ?? false;
     
-    // 同步到原生层
     await _methodChannel.invokeMethod('setSmsListenerEnabled', _isEnabled);
     
-    if (_isEnabled) {
-      _startListening();
-    }
+    if (_isEnabled) _startListening();
   }
   
   /// 启用短信监听
@@ -53,13 +48,10 @@ class SmsListenerService {
     
     _isEnabled = true;
     
-    // 保存设置
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, true);
     
-    // 同步到原生层
     await _methodChannel.invokeMethod('setSmsListenerEnabled', true);
-    
     _startListening();
   }
   
@@ -69,13 +61,10 @@ class SmsListenerService {
     
     _isEnabled = false;
     
-    // 保存设置
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, false);
     
-    // 同步到原生层
     await _methodChannel.invokeMethod('setSmsListenerEnabled', false);
-    
     _stopListening();
   }
   
@@ -93,73 +82,46 @@ class SmsListenerService {
     _subscription?.cancel();
     
     _subscription = _eventChannel.receiveBroadcastStream().listen(
-      (dynamic event) {
-        _handleSmsEvent(event as Map);
-      },
-      onError: (dynamic error) {
-        print('SmsListenerService 错误: $error');
-      },
-      onDone: () {
-        print('SmsListenerService 流结束');
-      },
+      (dynamic event) => _handleSmsEvent(event as Map),
+      onError: (dynamic error) => debugPrint('SmsListenerService 错误: $error'),
+      onDone: () => debugPrint('SmsListenerService 流结束'),
     );
     
-    print('SmsListenerService 已启动');
+    debugPrint('SmsListenerService 已启动');
   }
   
   /// 停止监听
   void _stopListening() {
     _subscription?.cancel();
     _subscription = null;
-    print('SmsListenerService 已停止');
+    debugPrint('SmsListenerService 已停止');
   }
   
   /// 处理短信事件
   Future<void> _handleSmsEvent(Map event) async {
-    final code = event['code'] as String?;
     final body = event['body'] as String?;
     final sender = event['sender'] as String?;
     
-    if (_codeManager == null) return;
+    if (_codeManager == null || body == null || body.isEmpty) return;
     
-    print('收到短信取件码事件: code=$code, sender=$sender');
+    debugPrint('收到短信: sender=$sender, body=${body.take(50)}...');
     
-    // 优先使用 body 解析完整信息
-    if (body != null && body.isNotEmpty) {
-      final result = PatternMatcher.match(body);
-      if (result != null) {
-        // 创建取件码项
-        final codeItem = result.toCodeItem();
-        
-        // 检查是否已存在
-        if (!await _codeManager!.codeExists(codeItem.code)) {
-          await _codeManager!.addCode(codeItem);
-          print('已自动添加取件码: ${codeItem.code}');
-        } else {
-          print('取件码已存在，跳过: ${codeItem.code}');
-        }
-        return;
-      }
+    // 统一使用 PatternMatcher 进行正则匹配
+    final result = PatternMatcher.match(body);
+    if (result == null) {
+      debugPrint('未能识别取件码');
+      return;
     }
     
-    // 如果 body 解析失败，但有 code，直接使用 code
-    if (code != null && code.isNotEmpty) {
-      // 检查是否已存在
-      if (!await _codeManager!.codeExists(code)) {
-        final codeItem = CodeItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          code: code,
-          type: CodeType.express,
-          source: sender ?? '未知来源',
-          createTime: DateTime.now(),
-          rawMessage: body,
-        );
-        await _codeManager!.addCode(codeItem);
-        print('已自动添加取件码（简化模式）: $code');
-      } else {
-        print('取件码已存在，跳过: $code');
-      }
+    // 检查是否已存在
+    if (await _codeManager!.codeExists(result.code)) {
+      debugPrint('取件码已存在: ${result.code}');
+      return;
     }
+    
+    // 添加取件码
+    await _codeManager!.addCode(result.toCodeItem());
+    debugPrint('已自动添加取件码: ${result.code}');
   }
   
   /// 释放资源

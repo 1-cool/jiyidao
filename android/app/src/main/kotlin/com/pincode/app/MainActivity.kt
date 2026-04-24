@@ -7,23 +7,32 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
+import android.provider.Telephony
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
+/**
+ * 主 Activity
+ * 
+ * 负责：
+ * 1. 注册 Flutter 插件
+ * 2. 监听系统短信广播
+ * 3. 将短信内容传递给 Flutter 层处理
+ */
 class MainActivity: FlutterActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val SMS_EVENT_CHANNEL = "com.pincode.app/sms_receiver"
         private const val METHOD_CHANNEL = "com.pincode.app/method"
-        const val SMS_CODE_RECEIVED = "com.pincode.app.SMS_CODE_RECEIVED"
-        const val PREF_SMS_ENABLED = "sms_listener_enabled"
+        private const val PREF_SMS_ENABLED = "sms_listener_enabled"
+        private const val ACTION_SMS_RECEIVED = "android.provider.Telephony.SMS_RECEIVED"
     }
     
     private var smsEventSink: EventChannel.EventSink? = null
-    private var smsReceiver: BroadcastReceiver? = null
+    private var systemSmsReceiver: BroadcastReceiver? = null
     private lateinit var prefs: SharedPreferences
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,14 +52,12 @@ class MainActivity: FlutterActivity() {
                 when (call.method) {
                     "setSmsListenerEnabled" -> {
                         val enabled = call.arguments as? Boolean ?: false
-                        val editor = prefs.edit()
-                        editor.putBoolean(PREF_SMS_ENABLED, enabled)
-                        editor.apply()
+                        prefs.edit().putBoolean(PREF_SMS_ENABLED, enabled).apply()
                         
                         if (enabled) {
-                            registerSmsReceiver()
+                            registerSystemSmsReceiver()
                         } else {
-                            unregisterSmsReceiver()
+                            unregisterSystemSmsReceiver()
                         }
                         
                         result.success(null)
@@ -63,7 +70,7 @@ class MainActivity: FlutterActivity() {
                 }
             }
         
-        // 事件通道 - 用于接收短信
+        // 事件通道 - 用于向 Flutter 发送短信内容
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -72,7 +79,7 @@ class MainActivity: FlutterActivity() {
                     // 检查是否启用
                     val enabled = prefs.getBoolean(PREF_SMS_ENABLED, false)
                     if (enabled) {
-                        registerSmsReceiver()
+                        registerSystemSmsReceiver()
                     }
                     
                     Log.d(TAG, "EventChannel 已连接, 短信监听: $enabled")
@@ -80,64 +87,71 @@ class MainActivity: FlutterActivity() {
                 
                 override fun onCancel(arguments: Any?) {
                     smsEventSink = null
-                    unregisterSmsReceiver()
+                    unregisterSystemSmsReceiver()
                     Log.d(TAG, "EventChannel 已断开")
                 }
             })
     }
     
     /**
-     * 注册短信广播接收器
+     * 注册系统短信广播接收器
+     * 
+     * 直接监听系统短信，将原始内容传递给 Flutter 层处理
+     * 不在原生层做正则匹配，统一由 Flutter 的 PatternMatcher 处理
      */
-    private fun registerSmsReceiver() {
-        if (smsReceiver != null) return
+    private fun registerSystemSmsReceiver() {
+        if (systemSmsReceiver != null) return
         
-        smsReceiver = object : BroadcastReceiver() {
+        systemSmsReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent == null) return
+                if (intent == null || intent.action != ACTION_SMS_RECEIVED) return
                 
-                val code = intent.getStringExtra("code") ?: return
-                val body = intent.getStringExtra("body") ?: ""
-                val sender = intent.getStringExtra("sender") ?: ""
-                
-                Log.d(TAG, "收到短信取件码: $code")
-                
-                // 发送到 Flutter
-                smsEventSink?.success(mapOf(
-                    "code" to code,
-                    "body" to body,
-                    "sender" to sender
-                ))
+                val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+                for (sms in messages) {
+                    val body = sms.messageBody ?: continue
+                    val sender = sms.displayOriginatingAddress ?: ""
+                    
+                    Log.d(TAG, "收到短信: sender=$sender, body=${body.take(50)}...")
+                    
+                    // 将原始短信内容发送到 Flutter 层
+                    // Flutter 的 PatternMatcher 会进行正则匹配
+                    smsEventSink?.success(mapOf(
+                        "body" to body,
+                        "sender" to sender
+                    ))
+                }
             }
         }
         
-        val filter = IntentFilter(SMS_CODE_RECEIVED)
+        val filter = IntentFilter(ACTION_SMS_RECEIVED)
+        filter.priority = IntentFilter.SYSTEM_HIGH_PRIORITY
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(smsReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(systemSmsReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(smsReceiver, filter)
+            registerReceiver(systemSmsReceiver, filter)
         }
         
-        Log.d(TAG, "短信广播接收器已注册")
+        Log.d(TAG, "系统短信接收器已注册")
     }
     
     /**
-     * 注销短信广播接收器
+     * 注销系统短信广播接收器
      */
-    private fun unregisterSmsReceiver() {
-        smsReceiver?.let {
+    private fun unregisterSystemSmsReceiver() {
+        systemSmsReceiver?.let {
             try {
                 unregisterReceiver(it)
             } catch (e: Exception) {
                 Log.e(TAG, "注销接收器失败: ${e.message}")
             }
-            smsReceiver = null
-            Log.d(TAG, "短信广播接收器已注销")
+            systemSmsReceiver = null
+            Log.d(TAG, "系统短信接收器已注销")
         }
     }
     
     override fun onDestroy() {
-        unregisterSmsReceiver()
+        unregisterSystemSmsReceiver()
         super.onDestroy()
     }
 }

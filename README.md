@@ -32,6 +32,44 @@
 
 ## 技术架构
 
+### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        用户界面层                            │
+│  HomeScreen / AddCodeScreen / SettingsScreen                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        业务逻辑层                            │
+│  CodeManager (状态管理 + 数据操作)                           │
+│  PatternMatcher (正则匹配 - 统一在 Flutter 端处理)           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        服务层                                │
+│  NotificationService (通知 + 定时提醒)                       │
+│  OppoIslandService (灵动岛)                                  │
+│  SmsListenerService (短信监听)                               │
+│  DatabaseService (SQLite 存储)                               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        原生层 (Android)                      │
+│  MainActivity (短信广播监听 → 传递原始内容给 Flutter)         │
+│  OppoIslandPlugin (ProgressStyle API)                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 核心设计原则
+
+1. **单一职责**：每个服务只负责一件事
+2. **统一处理**：正则匹配统一在 Flutter 端的 `PatternMatcher` 处理，原生层只负责监听和传递
+3. **系统级提醒**：定时提醒使用 `flutter_local_notifications` 的 `zonedSchedule`，App 被杀也能触发
+
 ### Flutter 端
 
 | 模块 | 文件 | 说明 |
@@ -40,21 +78,18 @@
 | 状态管理 | `lib/services/code_manager.dart` | 取件码业务逻辑、增删改查 |
 | 数据模型 | `lib/models/code_item.dart` | 取件码数据结构 |
 | 数据库 | `lib/services/database_service.dart` | SQLite 存储 |
-| 正则匹配 | `lib/services/pattern_matcher.dart` | 短信内容识别引擎 |
-| 通知服务 | `lib/services/notification_service.dart` | Flutter 端通知管理 |
+| 正则匹配 | `lib/services/pattern_matcher.dart` | 短信内容识别引擎（统一处理） |
+| 通知服务 | `lib/services/notification_service.dart` | 通知管理 + 定时提醒 |
 | 灵动岛服务 | `lib/services/oppo_island_service.dart` | MethodChannel 通信 |
-| 定时提醒 | `lib/services/reminder_service.dart` | 取快递提醒调度 |
-| 短信监听 | `lib/services/sms_listener_service.dart` | 短信广播处理 |
+| 短信监听 | `lib/services/sms_listener_service.dart` | 接收原生层短信事件 |
 | 主题管理 | `lib/theme/theme_manager.dart` | 深色/浅色模式切换 |
 
 ### Android 原生端
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
+| 主活动 | `MainActivity.kt` | 短信广播监听 + 插件注册 |
 | 灵动岛插件 | `OppoIslandPlugin.kt` | Android 16 ProgressStyle API 实现 |
-| 短信接收器 | `SmsReceiver.kt` | 系统短信广播监听 |
-| 短信插件 | `SmsListenerPlugin.kt` | Flutter ↔ Android 短信通信 |
-| 主活动 | `MainActivity.kt` | 插件注册入口 |
 
 ### 技术栈
 
@@ -62,7 +97,7 @@
 - **状态管理**: Provider
 - **本地存储**: SQLite (sqflite)
 - **通知**: flutter_local_notifications 21.0+
-- **定时提醒**: timezone
+- **定时提醒**: timezone + zonedSchedule
 - **权限管理**: permission_handler
 - **Android API**: Notification.ProgressStyle (Android 16+)
 
@@ -109,6 +144,7 @@ Notification.Builder(context, channelId)
 
 | 版本 | 说明 |
 |------|------|
+| v1.0.49-beta | 架构重构：统一正则匹配、简化通知系统、修复单例 Bug |
 | v1.0.48-beta | Android 16 Live Updates API 完整实现 |
 | v1.0.35-beta | 通知显示优化、日志功能 |
 | v1.0.32-beta | 支持 realme 设备检测 |
@@ -130,11 +166,10 @@ memory-island-flutter/
 │   ├── services/
 │   │   ├── code_manager.dart     # 业务逻辑
 │   │   ├── database_service.dart # 数据库
-│   │   ├── notification_service.dart # 通知
+│   │   ├── notification_service.dart # 通知 + 定时提醒
 │   │   ├── oppo_island_service.dart  # 灵动岛
-│   │   ├── pattern_matcher.dart  # 正则匹配
-│   │   ├── reminder_service.dart # 定时提醒
-│   │   └ sms_listener_service.dart # 短信监听
+│   │   ├── pattern_matcher.dart  # 正则匹配（统一处理）
+│   │   └── sms_listener_service.dart # 短信监听
 │   ├── theme/
 │   │   ├── app_theme.dart        # 主题定义
 │   │   └── theme_manager.dart    # 主题管理
@@ -142,9 +177,7 @@ memory-island-flutter/
 ├── android/
 │   └ app/src/main/kotlin/com/pincode/app/
 │   │   ├── OppoIslandPlugin.kt   # 灵动岛原生实现
-│   │   ├── SmsReceiver.kt        # 短信接收器
-│   │   ├── SmsListenerPlugin.kt  # 短信插件
-│   │   └ MainActivity.kt         # 主活动
+│   │   └── MainActivity.kt       # 主活动 + 短信监听
 │   └ app/src/main/AndroidManifest.xml
 ├── pubspec.yaml                  # Flutter 依赖配置
 └── README.md

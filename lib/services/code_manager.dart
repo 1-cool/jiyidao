@@ -8,18 +8,16 @@ import 'oppo_island_service.dart';
 
 /// 取件码管理器
 /// 
-/// 负责取件码的业务逻辑处理
+/// 负责取件码的数据管理和通知协调
 class CodeManager extends ChangeNotifier {
   final DatabaseService _database = DatabaseService();
   final NotificationService _notification;
   final OppoIslandService _oppoIsland = OppoIslandService();
   
-  /// 取件码列表（用于UI展示）
+  /// 取件码列表
   List<CodeItem> _codes = [];
-  
   List<CodeItem> get codes => _codes;
   
-  /// 构造函数，接收 NotificationService 实例
   CodeManager({NotificationService? notificationService}) 
       : _notification = notificationService ?? NotificationService();
 
@@ -28,20 +26,19 @@ class CodeManager extends ChangeNotifier {
     try {
       await _loadCodes();
     } catch (e) {
-      print('Failed to load codes: $e');
-      // 加载失败时使用空列表
+      debugPrint('Failed to load codes: $e');
       _codes = [];
     }
 
     // 初始化 OPPO 灵动岛服务
     try {
       final supported = await _oppoIsland.init();
-      print('OPPO 灵动岛支持: $supported');
+      debugPrint('OPPO 灵动岛支持: $supported');
     } catch (e) {
-      print('OPPO 灵动岛初始化失败: $e');
+      debugPrint('OPPO 灵动岛初始化失败: $e');
     }
 
-    // 恢复通知和定时提醒（NotificationService 已在 main.dart 中初始化）
+    // 恢复通知和定时提醒
     await _restoreNotifications();
     await _restoreDailyReminder();
   }
@@ -50,19 +47,18 @@ class CodeManager extends ChangeNotifier {
   Future<void> _restoreNotifications() async {
     for (final code in _codes) {
       try {
-        // 只使用 OPPO 灵动岛恢复通知
         await _oppoIsland.showCode(code);
       } catch (e) {
-        print('恢复灵动岛通知失败: ${code.code}, $e');
+        debugPrint('恢复灵动岛通知失败: ${code.code}, $e');
         // 降级使用 Flutter 端通知
         try {
           await _notification.showCodeNotification(code);
         } catch (e2) {
-          print('恢复 Flutter 端通知也失败: ${code.code}, $e2');
+          debugPrint('恢复 Flutter 端通知也失败: ${code.code}, $e2');
         }
       }
     }
-    print('已恢复 ${_codes.length} 个取件码的通知');
+    debugPrint('已恢复 ${_codes.length} 个取件码的通知');
   }
   
   /// 恢复定时提醒设置
@@ -71,11 +67,7 @@ class CodeManager extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final modeIndex = prefs.getInt('reminder_mode');
       
-      // 如果没有设置或已关闭，不恢复
-      if (modeIndex == null || modeIndex == 2) {
-        print('定时提醒未设置或已关闭');
-        return;
-      }
+      if (modeIndex == null || modeIndex == 2) return; // 未设置或已关闭
       
       final hour = prefs.getInt('reminder_hour') ?? 18;
       final minute = prefs.getInt('reminder_minute') ?? 30;
@@ -85,17 +77,15 @@ class CodeManager extends ChangeNotifier {
       final hasExpress = _codes.any((code) => code.type == CodeType.express);
       
       if (hasExpress) {
-        print('恢复定时提醒: $hour:$minute, 工作日: $workdayOnly');
+        debugPrint('恢复定时提醒: $hour:$minute, 工作日: $workdayOnly');
         await _notification.scheduleDailyReminder(
           hour: hour,
           minute: minute,
           workdayOnly: workdayOnly,
         );
-      } else {
-        print('没有快递，不恢复定时提醒');
       }
     } catch (e) {
-      print('恢复定时提醒失败: $e');
+      debugPrint('恢复定时提醒失败: $e');
     }
   }
 
@@ -106,16 +96,11 @@ class CodeManager extends ChangeNotifier {
   }
 
   /// 处理短信内容
-  /// 
-  /// 自动识别短信中的取件码并保存
   Future<CodeItem?> processSms(String smsContent) async {
     final result = PatternMatcher.match(smsContent);
     if (result == null) return null;
     
-    // 检查是否已存在
-    if (await _database.codeExists(result.code)) {
-      return null; // 已存在，不重复添加
-    }
+    if (await _database.codeExists(result.code)) return null;
     
     final codeItem = result.toCodeItem();
     await addCode(codeItem);
@@ -128,23 +113,26 @@ class CodeManager extends ChangeNotifier {
     _codes.insert(0, code);
     notifyListeners();
 
-    // 只使用 OPPO 灵动岛显示通知（不再使用 Flutter 端的通知）
-    // OPPO 灵动岛会使用 ProgressStyle API 显示常驻通知
+    // 显示通知
+    await _showNotification(code);
+
+    // 如果是快递类型，更新定时提醒
+    if (code.type == CodeType.express) {
+      await _updateExpressReminder();
+    }
+  }
+  
+  /// 显示通知（灵动岛优先，降级到普通通知）
+  Future<void> _showNotification(CodeItem code) async {
     try {
       await _oppoIsland.showCode(code);
     } catch (e) {
-      print('OPPO 灵动岛显示失败: $e');
-      // 如果灵动岛失败，降级使用 Flutter 端通知
+      debugPrint('OPPO 灵动岛显示失败: $e');
       try {
         await _notification.showCodeNotification(code);
       } catch (e2) {
-        print('Flutter 端通知也失败: $e2');
+        debugPrint('Flutter 端通知也失败: $e2');
       }
-    }
-
-    // 如果是快递类型，更新取快递提醒
-    if (code.type == CodeType.express) {
-      _updateExpressReminder();
     }
   }
 
@@ -155,10 +143,7 @@ class CodeManager extends ChangeNotifier {
     required String source,
     String? location,
   }) async {
-    // 检查是否已存在
-    if (await _database.codeExists(code)) {
-      return null;
-    }
+    if (await _database.codeExists(code)) return null;
 
     final codeItem = CodeItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -175,12 +160,9 @@ class CodeManager extends ChangeNotifier {
 
   /// 标记为已使用
   Future<void> markAsUsed(String id) async {
-    // 安全查找，避免 firstWhere 抛出异常
     final index = _codes.indexWhere((c) => c.id == id);
-    if (index == -1) {
-      print('取件码不存在: $id');
-      return;
-    }
+    if (index == -1) return;
+    
     final code = _codes[index];
     final wasExpress = code.type == CodeType.express;
     
@@ -188,30 +170,26 @@ class CodeManager extends ChangeNotifier {
     _codes.removeAt(index);
     notifyListeners();
     
-    // 取消通知
-    await _notification.cancelNotification(id);
+    await _hideNotification(id);
     
-    // 隐藏 OPPO 灵动岛
+    if (wasExpress) await _updateExpressReminder();
+  }
+  
+  /// 隐藏通知
+  Future<void> _hideNotification(String id) async {
+    await _notification.cancelNotification(id);
     try {
       await _oppoIsland.hideCode(id);
     } catch (e) {
-      print('OPPO 灵动岛隐藏失败: $e');
-    }
-
-    // 如果是快递类型，更新取快递提醒
-    if (wasExpress) {
-      _updateExpressReminder();
+      debugPrint('OPPO 灵动岛隐藏失败: $e');
     }
   }
 
   /// 删除取件码
   Future<void> deleteCode(String id) async {
-    // 安全查找，避免 firstWhere 抛出异常
     final index = _codes.indexWhere((c) => c.id == id);
-    if (index == -1) {
-      print('取件码不存在: $id');
-      return;
-    }
+    if (index == -1) return;
+    
     final code = _codes[index];
     final wasExpress = code.type == CodeType.express;
     
@@ -219,20 +197,9 @@ class CodeManager extends ChangeNotifier {
     _codes.removeAt(index);
     notifyListeners();
     
-    // 取消通知
-    await _notification.cancelNotification(id);
+    await _hideNotification(id);
     
-    // 隐藏 OPPO 灵动岛
-    try {
-      await _oppoIsland.hideCode(id);
-    } catch (e) {
-      print('OPPO 灵动岛隐藏失败: $e');
-    }
-
-    // 如果是快递类型，更新取快递提醒
-    if (wasExpress) {
-      _updateExpressReminder();
-    }
+    if (wasExpress) await _updateExpressReminder();
   }
 
   /// 清理所有已使用的取件码
@@ -252,44 +219,31 @@ class CodeManager extends ChangeNotifier {
     return await _database.codeExists(code);
   }
 
-  /// 释放资源
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   /// 更新取快递提醒
-  /// 
-  /// 根据当前快递数量和设置决定是否启用提醒
   Future<void> _updateExpressReminder() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final modeIndex = prefs.getInt('reminder_mode') ?? 1;
       
-      // 如果提醒已关闭，不做任何操作
-      if (modeIndex == 2) return; // ReminderMode.disabled.index = 2
+      if (modeIndex == 2) return; // 已关闭
       
       final hour = prefs.getInt('reminder_hour') ?? 18;
       final minute = prefs.getInt('reminder_minute') ?? 30;
-      final workdayOnly = modeIndex == 1; // ReminderMode.workday.index = 1
-
-      // 检查是否有快递类型的取件码
+      final workdayOnly = modeIndex == 1;
       final hasExpress = _codes.any((code) => code.type == CodeType.express);
 
       if (hasExpress) {
-        // 有快递，设置提醒
         await _notification.scheduleDailyReminder(
           hour: hour,
           minute: minute,
           workdayOnly: workdayOnly,
         );
       } else {
-        // 没有快递，取消提醒
         await _notification.cancelDailyReminder(workdayOnly: true);
         await _notification.cancelDailyReminder(workdayOnly: false);
       }
     } catch (e) {
-      print('更新取快递提醒失败: $e');
+      debugPrint('更新取快递提醒失败: $e');
     }
   }
 }
