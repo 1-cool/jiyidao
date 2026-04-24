@@ -104,7 +104,7 @@ class SmsListenerService {
     
     if (_codeManager == null || body == null || body.isEmpty) return;
     
-    debugPrint('收到短信: sender=$sender, body=${body.take(50)}...');
+    debugPrint('收到短信: sender=$sender, body=${body.length > 50 ? body.substring(0, 50) : body}...');
     
     // 统一使用 PatternMatcher 进行正则匹配
     final result = PatternMatcher.match(body);
