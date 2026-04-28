@@ -200,8 +200,12 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .setProgressTrackerIcon(headerIcon)
             .setProgressSegments(progressSegments)
             .setProgressPoints(progressPoints)
-            .setHeaderIcon(headerIcon)           // 设置头部图标（关键！）
-            .setHeaderText(locationName.ifEmpty { location })  // 设置头部文本（关键！）
+        
+        // Android 16 QPR1 (API 36+) 支持更多 ProgressStyle 方法
+        if (Build.VERSION.SDK_INT >= 36) {
+            progressStyle.setHeaderIcon(headerIcon)
+            progressStyle.setHeaderText(locationName.ifEmpty { location })
+        }
         
         // 构建通知
         val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
