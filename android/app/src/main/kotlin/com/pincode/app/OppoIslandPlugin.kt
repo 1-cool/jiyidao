@@ -191,14 +191,20 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             Notification.ProgressStyle.Segment(100).setColor(accentColor)
         )
         
+        // 构建头部图标
+        val headerIcon = android.graphics.drawable.Icon.createWithResource(context, R.mipmap.ic_launcher)
+        
         val progressStyle = Notification.ProgressStyle()
             .setStyledByProgress(false)
             .setProgress(100)
-            .setProgressTrackerIcon(android.graphics.drawable.Icon.createWithResource(context, R.mipmap.ic_launcher))
+            .setProgressTrackerIcon(headerIcon)
             .setProgressSegments(progressSegments)
             .setProgressPoints(progressPoints)
+            .setHeaderIcon(headerIcon)           // 设置头部图标（关键！）
+            .setHeaderText(locationName.ifEmpty { location })  // 设置头部文本（关键！）
         
-        return Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
+        // 构建通知
+        val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(locationName.ifEmpty { location })
             .setContentText(code)
@@ -209,7 +215,15 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .setCategory(Notification.CATEGORY_STATUS)
             .setColor(accentColor)
             .setStyle(progressStyle)
-            .build()
+        
+        // Android 16 QPR1 (API 36+) 支持 requestPromotedOngoing
+        // 这是让通知成为 Live Update 的关键 API！
+        if (Build.VERSION.SDK_INT >= 36) {
+            builder.requestPromotedOngoing(true)
+            addLog("已启用 Live Updates (requestPromotedOngoing)")
+        }
+        
+        return builder.build()
     }
     
     private fun parseTitle(title: String): Pair<String, String> {
