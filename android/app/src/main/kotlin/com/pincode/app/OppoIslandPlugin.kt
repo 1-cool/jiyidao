@@ -201,11 +201,9 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .setProgressSegments(progressSegments)
             .setProgressPoints(progressPoints)
         
-        // Android 16 QPR1 (API 36+) 支持更多 ProgressStyle 方法
-        if (Build.VERSION.SDK_INT >= 36) {
-            progressStyle.setHeaderIcon(headerIcon)
-            progressStyle.setHeaderText(locationName.ifEmpty { location })
-        }
+        // 注意：setHeaderIcon、setHeaderText、requestPromotedOngoing
+        // 这些 API 在 compileSdk 36 中还不存在，需要等待更高版本的 SDK
+        // 目前只使用基础的 ProgressStyle API
         
         // 构建通知
         val builder = Notification.Builder(context, NOTIFICATION_CHANNEL_ID)
@@ -219,13 +217,6 @@ class OppoIslandPlugin(private val context: Context) : MethodChannel.MethodCallH
             .setCategory(Notification.CATEGORY_STATUS)
             .setColor(accentColor)
             .setStyle(progressStyle)
-        
-        // Android 16 QPR1 (API 36+) 支持 requestPromotedOngoing
-        // 这是让通知成为 Live Update 的关键 API！
-        if (Build.VERSION.SDK_INT >= 36) {
-            builder.requestPromotedOngoing(true)
-            addLog("已启用 Live Updates (requestPromotedOngoing)")
-        }
         
         return builder.build()
     }
