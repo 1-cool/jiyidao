@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:fast_paddle_ocr/fast_paddle_ocr.dart';
+// import 'package:fast_paddle_ocr/fast_paddle_ocr.dart'; // 暂时移除，插件有问题
 
 /// OCR 服务类 - 使用 NCNN 进行图片文字识别
 /// 

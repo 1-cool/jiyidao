@@ -32,8 +32,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_slidable: ^3.0.1
   
-  # OCR
-  fast_paddle_ocr: ^0.0.5
+  # 图片选择
   image_picker: ^1.0.0
 
 dev_dependencies:
