@@ -150,6 +150,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // 文本添加
+                    _FabOption(
+                      icon: Icons.edit,
+                      label: '文本添加',
+                      onPressed: () {
+                        _toggleFab();
+                        _addCode(context);
+                      },
+                    ),
+                    const SizedBox(height: 12),
                     // 图片识别
                     _FabOption(
                       icon: Icons.photo_library,
@@ -231,17 +241,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           const SizedBox(height: 8),
           Text(
-            '点击下方按钮添加，或复制短信后自动识别',
+            '点击右下角按钮添加，或复制短信后自动识别',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[400],
             ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _addCode(context),
-            icon: const Icon(Icons.add),
-            label: const Text('手动添加'),
           ),
         ],
       ),

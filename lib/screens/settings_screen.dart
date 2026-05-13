@@ -123,27 +123,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           const Divider(),
           
-          // 开发调试
-          _buildSectionHeader('开发调试'),
-          ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('灵动岛日志'),
-            subtitle: const Text('查看流体云/灵动岛调试日志'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const IslandLogScreen()),
-            ),
-          ),
-          
-          const Divider(),
-          
           // 关于
           _buildSectionHeader('关于'),
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('版本'),
-            subtitle: Text('v1.0.49-beta'),
+            subtitle: Text('v1.0.54-beta'),
           ),
         ],
       ),
