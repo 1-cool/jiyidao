@@ -61,10 +61,15 @@ android {
 
     defaultConfig {
         applicationId "com.pincode.app"
-        minSdkVersion 23
+        minSdkVersion 24  // fast_paddle_ocr 要求 API 24+
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        
+        // 只构建 ARM 架构（减少 APK 大小）
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
 
     buildTypes {

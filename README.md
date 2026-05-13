@@ -8,7 +8,8 @@
 - 通知栏常驻显示
 - 定时提醒取快递
 - 暗黑模式
-- Android 16 灵动岛（ProgressStyle API）
+- OPPO 流体云 Live Updates（开发中）
+- Android 16 灵动岛（开发中）
 
 ## 支持的格式
 

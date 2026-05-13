@@ -5,6 +5,7 @@ import '../models/code_item.dart';
 import '../services/code_manager.dart';
 import '../widgets/code_card.dart';
 import 'add_code_screen.dart';
+import 'ocr_screen.dart';
 import 'settings_screen.dart';
 
 /// 主界面
@@ -15,13 +16,32 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   bool _hasCheckedPermission = false;
+  bool _isFabExpanded = false; // 展开状态
+  late AnimationController _fabAnimationController;
+  late Animation<double> _fabAnimation;
 
   @override
   void initState() {
     super.initState();
     _checkNotificationPermission();
+    
+    // 初始化动画控制器
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _fabAnimation = CurvedAnimation(
+      parent: _fabAnimationController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _fabAnimationController.dispose();
+    super.dispose();
   }
 
   /// 检查通知权限
@@ -112,10 +132,80 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addCode(context),
-        icon: const Icon(Icons.add),
-        label: const Text('添加'),
+      floatingActionButton: _buildExpandableFab(),
+    );
+  }
+
+  /// 构建展开式 FAB
+  Widget _buildExpandableFab() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // 展开的选项（从下到上）
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: _isFabExpanded
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // 图片识别
+                    _FabOption(
+                      icon: Icons.photo_library,
+                      label: '图片识别',
+                      onPressed: () {
+                        _toggleFab();
+                        _openOcrScreen();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // 拍照识别
+                    _FabOption(
+                      icon: Icons.camera_alt,
+                      label: '拍照识别',
+                      onPressed: () {
+                        _toggleFab();
+                        _openOcrScreen(camera: true);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                )
+              : const SizedBox.shrink(),
+        ),
+        
+        // 主按钮
+        FloatingActionButton(
+          onPressed: _toggleFab,
+          child: AnimatedRotation(
+            turns: _isFabExpanded ? 0.125 : 0, // 旋转 45 度
+            duration: const Duration(milliseconds: 200),
+            child: Icon(_isFabExpanded ? Icons.close : Icons.add),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 切换 FAB 展开状态
+  void _toggleFab() {
+    setState(() {
+      _isFabExpanded = !_isFabExpanded;
+      if (_isFabExpanded) {
+        _fabAnimationController.forward();
+      } else {
+        _fabAnimationController.reverse();
+      }
+    });
+  }
+
+  /// 打开 OCR 页面
+  void _openOcrScreen({bool camera = false}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OcrScreen(initialCamera: camera),
       ),
     );
   }
@@ -407,6 +497,56 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// FAB 选项组件
+class _FabOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _FabOption({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        FloatingActionButton.small(
+          heroTag: label,
+          onPressed: onPressed,
+          child: Icon(icon),
+        ),
+      ],
     );
   }
 }
