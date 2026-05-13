@@ -266,30 +266,20 @@ class _OcrScreenState extends State<OcrScreen> {
     
     try {
       // 调用 OCR 识别
-      final texts = await _ocrService.recognizeText(_selectedImage!.path);
-      
-      // 合并所有识别文本
-      final fullText = texts.join('\n');
+      final text = await _ocrService.recognizeText(_selectedImage!.path);
       
       // 用 PatternMatcher 匹配取件码
       final results = <MatchResult>[];
-      for (final text in texts) {
-        final result = PatternMatcher.match(text);
-        if (result != null) {
-          results.add(result);
-        }
+      final result = PatternMatcher.match(text);
+      if (result != null) {
+        results.add(result);
       }
       
-      // 如果单行没匹配到，尝试整体匹配
-      if (results.isEmpty && texts.isNotEmpty) {
-        final result = PatternMatcher.match(fullText);
-        if (result != null) {
-          results.add(result);
-        }
-      }
+      // 按行分割文本，用于显示
+      final textLines = text.isEmpty ? <String>[] : text.split('\n');
       
       setState(() {
-        _recognizedTexts = texts;
+        _recognizedTexts = textLines;
         _matchResults = results;
         _isProcessing = false;
       });
