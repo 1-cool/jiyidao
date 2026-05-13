@@ -1,7 +1,7 @@
 name: memory_island
 description: 记忆岛 - 把取件码钉在灵动岛上，像记忆一样常驻
 publish_to: 'none'
-version: 1.0.55-beta+56
+version: 1.0.56-beta+57
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -34,6 +34,9 @@ dependencies:
   
   # 图片选择
   image_picker: ^1.0.0
+  
+  # OCR
+  fast_paddle_ocr: ^0.0.5
 
 dev_dependencies:
   flutter_test:
