@@ -188,11 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         // 主按钮
         FloatingActionButton(
           onPressed: _toggleFab,
-          child: AnimatedRotation(
-            turns: _isFabExpanded ? 0.125 : 0, // 旋转 45 度
-            duration: const Duration(milliseconds: 200),
-            child: Icon(_isFabExpanded ? Icons.close : Icons.add),
-          ),
+          child: Icon(_isFabExpanded ? Icons.close : Icons.add),
         ),
       ],
     );

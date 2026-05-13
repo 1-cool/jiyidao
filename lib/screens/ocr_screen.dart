@@ -187,12 +187,12 @@ class _OcrScreenState extends State<OcrScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Colors.grey[300],  // 深色背景，方便看白色字
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: SelectableText(  // 可选择复制
                     _recognizedTexts.join('\n'),
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
                   ),
                 ),
               ],
