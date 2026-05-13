@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,10 +22,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _reminderMinute = 30;
   int _reminderMode = 1; // 0: 每天, 1: 工作日, 2: 关闭
   
+  // 应用版本
+  String _version = '';
+  String _buildNumber = '';
+  
   @override
   void initState() {
     super.initState();
     _loadReminderSettings();
+    _loadAppVersion();
+  }
+  
+  /// 加载应用版本
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = packageInfo.version;
+      _buildNumber = packageInfo.buildNumber;
+    });
   }
   
   /// 加载定时提醒设置
@@ -125,10 +140,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           // 关于
           _buildSectionHeader('关于'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('版本'),
-            subtitle: Text('v1.0.54-beta'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('版本'),
+            subtitle: Text(_version.isNotEmpty ? 'v$_version-beta (+$_buildNumber)' : '加载中...'),
           ),
         ],
       ),

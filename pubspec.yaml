@@ -37,6 +37,9 @@ dependencies:
   
   # OCR
   fast_paddle_ocr: ^0.0.5
+  
+  # 应用信息
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
