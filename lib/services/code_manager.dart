@@ -210,6 +210,51 @@ class CodeManager extends ChangeNotifier {
     if (wasExpress) await _updateExpressReminder();
   }
 
+  /// 更新取件码
+  Future<void> updateCode({
+    required String id,
+    required String code,
+    required CodeType type,
+    required String source,
+    String? location,
+  }) async {
+    final index = _codes.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+
+    final oldCode = _codes[index];
+    final wasExpress = oldCode.type == CodeType.express;
+    final nowExpress = type == CodeType.express;
+
+    // 更新数据库
+    final updatedCode = CodeItem(
+      id: id,
+      code: code,
+      type: type,
+      source: source,
+      location: location,
+      createTime: oldCode.createTime,
+    );
+    await _database.updateCode(updatedCode);
+
+    // 更新内存列表
+    _codes[index] = updatedCode;
+    notifyListeners();
+
+    // 更新通知
+    await _notification.cancelNotification(id);
+    try {
+      await _oppoIsland.hideCode(id);
+    } catch (e) {
+      debugPrint('OPPO 灵动岛隐藏失败: $e');
+    }
+    await _showNotification(updatedCode);
+
+    // 如果快递类型发生变化，更新定时提醒
+    if (wasExpress != nowExpress) {
+      await _updateExpressReminder();
+    }
+  }
+
   /// 清理所有已使用的取件码
   Future<int> cleanUsedCodes() async {
     final count = await _database.cleanUsedCodes();

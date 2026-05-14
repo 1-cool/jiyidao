@@ -157,6 +157,17 @@ class DatabaseService {
     );
   }
 
+  /// 更新取件码
+  Future<void> updateCode(CodeItem code) async {
+    final db = await database;
+    await db.update(
+      _tableName,
+      code.toJson(),
+      where: 'id = ?',
+      whereArgs: [code.id],
+    );
+  }
+
   /// 清理已使用的取件码
   Future<int> cleanUsedCodes() async {
     final db = await database;

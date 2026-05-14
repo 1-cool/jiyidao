@@ -5,9 +5,11 @@ import '../models/code_item.dart';
 import '../services/code_manager.dart';
 import '../services/pattern_matcher.dart';
 
-/// 添加取件码页面
+/// 添加/编辑取件码页面
 class AddCodeScreen extends StatefulWidget {
-  const AddCodeScreen({super.key});
+  final CodeItem? editCode; // 编辑模式：传入要编辑的取件码
+
+  const AddCodeScreen({super.key, this.editCode});
 
   @override
   State<AddCodeScreen> createState() => _AddCodeScreenState();
@@ -28,8 +30,21 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   @override
   void initState() {
     super.initState();
-    // 监听剪贴板
-    _checkClipboard();
+    
+    // 编辑模式：填充现有数据
+    if (widget.editCode != null) {
+      final code = widget.editCode!;
+      _codeController.text = code.code;
+      _sourceController.text = code.source;
+      _selectedType = code.type;
+      if (code.location != null) {
+        _locationController.text = code.location!;
+      }
+      _hasCheckedClipboard = true; // 编辑模式不检查剪贴板
+    } else {
+      // 新增模式：监听剪贴板
+      _checkClipboard();
+    }
   }
 
   @override
@@ -75,7 +90,7 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('添加'),
+        title: Text(widget.editCode != null ? '编辑' : '添加'),
         actions: [
           TextButton.icon(
             onPressed: _isProcessing ? null : _save,
@@ -339,24 +354,45 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
     setState(() => _isProcessing = true);
     
     try {
-      final code = await context.read<CodeManager>().addManualCode(
-        code: _codeController.text.trim(),
-        type: _selectedType,
-        source: _sourceController.text.trim(),
-        location: _locationController.text.trim().isNotEmpty 
-            ? _locationController.text.trim() 
-            : null,
-      );
-      
-      if (code != null && mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('添加成功')),
+      if (widget.editCode != null) {
+        // 编辑模式：更新现有取件码
+        await context.read<CodeManager>().updateCode(
+          id: widget.editCode!.id,
+          code: _codeController.text.trim(),
+          type: _selectedType,
+          source: _sourceController.text.trim(),
+          location: _locationController.text.trim().isNotEmpty 
+              ? _locationController.text.trim() 
+              : null,
         );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('该取件码已存在')),
+        
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('修改成功')),
+          );
+        }
+      } else {
+        // 新增模式
+        final code = await context.read<CodeManager>().addManualCode(
+          code: _codeController.text.trim(),
+          type: _selectedType,
+          source: _sourceController.text.trim(),
+          location: _locationController.text.trim().isNotEmpty 
+              ? _locationController.text.trim() 
+              : null,
         );
+        
+        if (code != null && mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('添加成功')),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('该取件码已存在')),
+          );
+        }
       }
     } finally {
       if (mounted) {

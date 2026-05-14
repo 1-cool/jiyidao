@@ -323,6 +323,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  /// 编辑取件码
+  void _editCode(BuildContext context, CodeItem code) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddCodeScreen(editCode: code),
+      ),
+    );
+  }
+
   /// 显示取件码详情
   void _showCodeDetail(BuildContext context, CodeItem code) {
     // 保存外部 context 引用，避免 bottomSheet 内部 context 失效
@@ -427,10 +437,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(sheetContext);
-                        _markAsUsed(homeContext, code);
+                        _editCode(homeContext, code);
                       },
-                      icon: const Icon(Icons.check),
-                      label: const Text('已取件'),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('编辑'),
                     ),
                   ),
                   const SizedBox(width: 12),
