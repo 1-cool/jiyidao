@@ -38,9 +38,9 @@ class PatternMatcher {
       type: CodeType.express,
     ),
     
-    // 菜鸟驿站格式：取件码：12-3-4567
+    // 菜鸟驿站格式：取件码：12-3-4567 或 取件码4-3-3020
     PatternRule(
-      pattern: RegExp(r'取件码[：:]\s*(\d{1,2}-\d{1,2}-\d{3,4})'),
+      pattern: RegExp(r'取件码[：:]?\s*(\d{1,2}-\d{1,2}-\d{3,4})'),
       type: CodeType.express,
       sourceGroup: null, // 从上下文提取
     ),
@@ -51,9 +51,9 @@ class PatternMatcher {
       type: CodeType.express,
     ),
     
-    // 通用取件码：取件码：123456
+    // 通用取件码：取件码：123456 或 取件码123456
     PatternRule(
-      pattern: RegExp(r'取件码[：:]\s*(\d{4,8})'),
+      pattern: RegExp(r'取件码[：:]?\s*(\d{4,8})'),
       type: CodeType.express,
     ),
     

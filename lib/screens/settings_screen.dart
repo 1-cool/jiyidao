@@ -143,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('版本'),
-            subtitle: Text(_version.isNotEmpty ? 'v$_version-beta' : '加载中...'),
+            subtitle: Text(_version.isNotEmpty ? 'v$_version' : '加载中...'),
           ),
         ],
       ),
