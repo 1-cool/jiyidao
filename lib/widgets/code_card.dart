@@ -30,6 +30,7 @@ class CodeCard extends StatelessWidget {
             foregroundColor: Colors.white,
             icon: Icons.delete,
             label: '删除',
+            flex: 1,
           ),
         ],
       ),
