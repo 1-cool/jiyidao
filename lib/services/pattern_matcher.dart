@@ -227,8 +227,7 @@ class PatternMatcher {
     final context = text.substring(endPos, contextEnd);
 
     // 优先匹配“菜鸟驿站|XXX店”格式
-    final cainiaoPattern = RegExp(r'菜鸟驿站[|｜]([^
-]{2,20})');
+    final cainiaoPattern = RegExp(r'菜鸟驿站[|｜]([^\n]{2,20})');
     final cainiaoMatch = cainiaoPattern.firstMatch(context);
     if (cainiaoMatch != null) {
       return cainiaoMatch.group(1)?.trim();
