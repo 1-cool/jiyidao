@@ -25,13 +25,6 @@ class CodeCard extends StatelessWidget {
         motion: const DrawerMotion(),
         children: [
           SlidableAction(
-            onPressed: (_) => onUsed?.call(),
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            icon: Icons.check,
-            label: '已取',
-          ),
-          SlidableAction(
             onPressed: (_) => onDelete?.call(),
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,

@@ -298,8 +298,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定删除「${code.code}」？'),
+        title: const Text('确认使用'),
+        content: Text('已取件？将移除「${code.code}」'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -307,6 +307,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('删除'),
           ),
