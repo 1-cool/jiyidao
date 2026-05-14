@@ -312,12 +312,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
       ),
     );
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
     
     if (confirmed == true && context.mounted) {
       await context.read<CodeManager>().deleteCode(code.id);
