@@ -268,12 +268,8 @@ class _OcrScreenState extends State<OcrScreen> {
       // 调用 OCR 识别
       final text = await _ocrService.recognizeText(_selectedImage!.path);
       
-      // 用 PatternMatcher 匹配取件码
-      final results = <MatchResult>[];
-      final result = PatternMatcher.match(text);
-      if (result != null) {
-        results.add(result);
-      }
+      // 用 PatternMatcher 匹配取件码（支持多取件码）
+      final results = PatternMatcher.matchAll(text);
       
       // 按行分割文本，用于显示
       final textLines = text.isEmpty ? <String>[] : text.split('\n');

@@ -254,22 +254,29 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
   void _recognizeText(String text) {
     if (text.isEmpty) return;
     
-    final result = PatternMatcher.match(text);
+    final results = PatternMatcher.matchAll(text);
     
-    if (result != null) {
-      setState(() {
-        _codeController.text = result.code;
-        _sourceController.text = result.source;
-        _selectedType = result.type;
-        if (result.location != null) {
-          _locationController.text = result.location!;
+    if (results.isNotEmpty) {
+      // 如果只有一个取件码，直接填充
+      if (results.length == 1) {
+        final result = results.first;
+        setState(() {
+          _codeController.text = result.code;
+          _sourceController.text = result.source;
+          _selectedType = result.type;
+          if (result.location != null) {
+            _locationController.text = result.location!;
+          }
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('识别成功！')),
+          );
         }
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('识别成功！')),
-        );
+      } else {
+        // 多个取件码，显示选择对话框
+        _showMultiCodeDialog(results);
       }
     } else {
       // 没识别到，清空识别框并提示用户手动输入
@@ -281,6 +288,48 @@ class _AddCodeScreenState extends State<AddCodeScreen> {
         );
       }
     }
+  }
+
+  /// 显示多取件码选择对话框
+  void _showMultiCodeDialog(List<MatchResult> results) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('识别到 ${results.length} 个取件码'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final result = results[index];
+              return ListTile(
+                leading: Text(result.type.emoji, style: const TextStyle(fontSize: 24)),
+                title: Text(result.code, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text('${result.source}${result.location != null ? ' · ${result.location}' : ''}'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _codeController.text = result.code;
+                    _sourceController.text = result.source;
+                    _selectedType = result.type;
+                    if (result.location != null) {
+                      _locationController.text = result.location!;
+                    }
+                  });
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 保存

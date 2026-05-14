@@ -96,15 +96,23 @@ class CodeManager extends ChangeNotifier {
   }
 
   /// 处理短信内容
-  Future<CodeItem?> processSms(String smsContent) async {
-    final result = PatternMatcher.match(smsContent);
-    if (result == null) return null;
+  ///
+  /// 返回所有新添加的取件码列表
+  Future<List<CodeItem>> processSms(String smsContent) async {
+    final results = PatternMatcher.matchAll(smsContent);
+    if (results.isEmpty) return [];
     
-    if (await _database.codeExists(result.code)) return null;
+    final List<CodeItem> addedCodes = [];
+    for (final result in results) {
+      // 跳过已存在的取件码
+      if (await _database.codeExists(result.code)) continue;
+      
+      final codeItem = result.toCodeItem();
+      await addCode(codeItem);
+      addedCodes.add(codeItem);
+    }
     
-    final codeItem = result.toCodeItem();
-    await addCode(codeItem);
-    return codeItem;
+    return addedCodes;
   }
 
   /// 添加取件码

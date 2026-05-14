@@ -106,22 +106,31 @@ class SmsListenerService {
     
     debugPrint('收到短信: sender=$sender, body=${body.length > 50 ? body.substring(0, 50) : body}...');
     
-    // 统一使用 PatternMatcher 进行正则匹配
-    final result = PatternMatcher.match(body);
-    if (result == null) {
+    // 统一使用 PatternMatcher 进行正则匹配（支持多取件码）
+    final results = PatternMatcher.matchAll(body);
+    if (results.isEmpty) {
       debugPrint('未能识别取件码');
       return;
     }
     
-    // 检查是否已存在
-    if (await _codeManager!.codeExists(result.code)) {
-      debugPrint('取件码已存在: ${result.code}');
-      return;
+    // 批量添加取件码
+    int addedCount = 0;
+    for (final result in results) {
+      // 检查是否已存在
+      if (await _codeManager!.codeExists(result.code)) {
+        debugPrint('取件码已存在: ${result.code}');
+        continue;
+      }
+      
+      // 添加取件码
+      await _codeManager!.addCode(result.toCodeItem());
+      addedCount++;
+      debugPrint('已自动添加取件码: ${result.code}');
     }
     
-    // 添加取件码
-    await _codeManager!.addCode(result.toCodeItem());
-    debugPrint('已自动添加取件码: ${result.code}');
+    if (addedCount > 0) {
+      debugPrint('共添加 $addedCount 个取件码');
+    }
   }
   
   /// 释放资源
