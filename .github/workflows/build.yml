@@ -69,10 +69,8 @@ jobs:
       - name: Get Version
         id: version
         run: |
-          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
-          BUILD_NUMBER=$(grep 'version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f2)
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
       
       # 9. 上传 APK 文件（Artifacts，会打包成 zip）
       - name: Upload APK (Artifact)
